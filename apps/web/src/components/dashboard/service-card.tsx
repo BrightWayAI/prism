@@ -12,6 +12,8 @@ interface ServiceCardProps {
   category: string;
   currentSpend: number;
   previousSpend: number;
+  totalSpend: number;
+  invoiceCount: number;
   currency?: string;
   spendHistory: number[];
   onClick?: () => void;
@@ -23,6 +25,8 @@ export function ServiceCard({
   category,
   currentSpend,
   previousSpend,
+  totalSpend,
+  invoiceCount,
   currency = "USD",
   spendHistory,
   onClick,
@@ -31,6 +35,10 @@ export function ServiceCard({
     ? ((currentSpend - previousSpend) / previousSpend) * 100
     : 0;
   const isIncrease = percentChange > 0;
+  
+  // Show total spend if no current month spend
+  const displaySpend = currentSpend > 0 ? currentSpend : totalSpend;
+  const spendLabel = currentSpend > 0 ? "This month" : "Total";
 
   return (
     <Card
@@ -65,18 +73,11 @@ export function ServiceCard({
 
           <div className="text-right">
             <p className="tabular-nums text-lg font-semibold">
-              {formatCurrency(currentSpend, currency)}
+              {formatCurrency(displaySpend, currency)}
             </p>
-            {percentChange !== 0 && (
-              <p
-                className={`text-xs tabular-nums ${
-                  isIncrease ? "text-destructive-foreground" : "text-success"
-                }`}
-              >
-                {isIncrease ? "+" : ""}
-                {percentChange.toFixed(1)}%
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              {spendLabel} · {invoiceCount} invoice{invoiceCount !== 1 ? "s" : ""}
+            </p>
           </div>
         </div>
 

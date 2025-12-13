@@ -3,12 +3,16 @@ import { auth } from "@/lib/auth";
 import { db, invoices, vendors } from "@prism/db";
 import { eq, desc, gte, sql, and } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Get daysBack from query params
+  const { searchParams } = new URL(request.url);
+  const daysBack = parseInt(searchParams.get("daysBack") || "180", 10);
 
   try {
     // Get date ranges
@@ -16,7 +20,11 @@ export async function GET() {
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    
+    // Calculate start date based on daysBack (0 = all time)
+    const startDate = daysBack > 0 
+      ? new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
+      : new Date(2020, 0, 1); // Far past date for "all time"
 
     // Get all invoices for the user
     const allInvoices = await db
@@ -37,7 +45,7 @@ export async function GET() {
       .where(
         and(
           eq(invoices.userId, session.user.id),
-          gte(invoices.invoiceDate, sixMonthsAgo)
+          gte(invoices.invoiceDate, startDate)
         )
       )
       .orderBy(desc(invoices.invoiceDate));

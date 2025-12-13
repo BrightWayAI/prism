@@ -5,7 +5,16 @@ import { useRouter } from "next/navigation";
 import { SpendSummary } from "@/components/dashboard/spend-summary";
 import { ServiceCard } from "@/components/dashboard/service-card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, RefreshCw, Calendar, ChevronDown } from "lucide-react";
+
+const DATE_RANGES = [
+  { label: "Last 30 days", value: 30 },
+  { label: "Last 90 days", value: 90 },
+  { label: "Last 6 months", value: 180 },
+  { label: "Last 12 months", value: 365 },
+  { label: "All time", value: 0 },
+];
 
 interface Service {
   vendorId: string;
@@ -35,10 +44,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState(180); // Default to 6 months
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (days: number = dateRange) => {
     try {
-      const res = await fetch("/api/dashboard");
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (days > 0) params.set("daysBack", days.toString());
+      
+      const res = await fetch(`/api/dashboard?${params.toString()}`);
       if (!res.ok) {
         if (res.status === 401) {
           router.push("/login");
@@ -53,6 +68,12 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleDateRangeChange = (days: number) => {
+    setDateRange(days);
+    setShowDatePicker(false);
+    fetchDashboard(days);
   };
 
   const handleScanInvoices = async () => {
@@ -129,6 +150,35 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Date Range Selector */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setShowDatePicker(!showDatePicker)}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {DATE_RANGES.find(r => r.value === dateRange)?.label || "Select range"}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+              {showDatePicker && (
+                <Card className="absolute right-0 top-12 z-50 w-48">
+                  <CardContent className="p-2">
+                    {DATE_RANGES.map((range) => (
+                      <button
+                        key={range.value}
+                        className={`w-full rounded px-3 py-2 text-left text-sm hover:bg-secondary ${
+                          dateRange === range.value ? "bg-secondary font-medium" : ""
+                        }`}
+                        onClick={() => handleDateRangeChange(range.value)}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
             <Button
               variant="outline"
               onClick={handleScanInvoices}
@@ -178,6 +228,8 @@ export default function DashboardPage() {
                       category={service.vendorCategory}
                       currentSpend={service.currentMonthSpend}
                       previousSpend={service.previousMonthSpend}
+                      totalSpend={service.totalSpend}
+                      invoiceCount={service.invoiceCount}
                       spendHistory={service.spendHistory}
                       onClick={() => router.push(`/invoices?vendorId=${service.vendorId}`)}
                     />

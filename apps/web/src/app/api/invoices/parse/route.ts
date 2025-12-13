@@ -114,24 +114,57 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Match vendor by email domain first, then by parsed name
+      // Match vendor by multiple strategies
       let vendorId: string | null = null;
       let matchedVendor = null;
       
-      // Try to match by email pattern
-      const emailDomain = email.from.toLowerCase();
-      for (const v of vendorsToProcess) {
-        if (v.emailPatterns?.some(pattern => emailDomain.includes(pattern.replace("@", "")))) {
-          matchedVendor = v;
-          break;
+      const emailFrom = email.from.toLowerCase();
+      const emailSubject = email.subject.toLowerCase();
+      
+      // Strategy 1: Check if this is a Stripe/payment processor receipt with vendor name in subject
+      const isPaymentProcessor = emailFrom.includes("stripe.com") || 
+                                  emailFrom.includes("paddle.com") || 
+                                  emailFrom.includes("chargebee.com");
+      
+      if (isPaymentProcessor) {
+        // Look for vendor name in subject like "Your receipt from Railway Corporation"
+        for (const v of vendorsToProcess) {
+          if (emailSubject.includes(v.name.toLowerCase()) || 
+              emailSubject.includes(v.slug.toLowerCase())) {
+            matchedVendor = v;
+            console.log(`Matched vendor ${v.name} from Stripe receipt subject`);
+            break;
+          }
         }
       }
       
-      // Fallback to name matching
+      // Strategy 2: Match by email domain pattern
+      if (!matchedVendor) {
+        for (const v of vendorsToProcess) {
+          if (v.emailPatterns?.some(pattern => emailFrom.includes(pattern.replace("@", "")))) {
+            matchedVendor = v;
+            break;
+          }
+        }
+      }
+      
+      // Strategy 3: Match by parsed vendor name
       if (!matchedVendor && parsed.vendorName) {
-        matchedVendor = await db.query.vendors.findFirst({
-          where: ilike(vendors.name, `%${parsed.vendorName}%`),
-        });
+        // First try exact match in our vendor list
+        for (const v of vendorsToProcess) {
+          if (v.name.toLowerCase() === parsed.vendorName.toLowerCase() ||
+              v.slug.toLowerCase() === parsed.vendorName.toLowerCase()) {
+            matchedVendor = v;
+            break;
+          }
+        }
+        
+        // Then try fuzzy match in database
+        if (!matchedVendor) {
+          matchedVendor = await db.query.vendors.findFirst({
+            where: ilike(vendors.name, `%${parsed.vendorName}%`),
+          });
+        }
       }
         
       if (matchedVendor) {
