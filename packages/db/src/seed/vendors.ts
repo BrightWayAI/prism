@@ -14,7 +14,14 @@ export const vendorSeedData: NewVendor[] = [
     slug: "gcp",
     logoUrl: "https://www.gstatic.com/devrel-devsite/prod/v1241c04ebcb2127897d6c18571d41b0e0bd58db3eeb1d88c88f435e48756bca2/cloud/images/favicons/onecloud/super_cloud.png",
     category: "Cloud",
-    emailPatterns: ["@google.com", "billing-noreply@google.com", "cloud-noreply@google.com"],
+    emailPatterns: ["billing-noreply@google.com", "cloud-noreply@google.com"],
+  },
+  {
+    name: "Google Workspace",
+    slug: "google-workspace",
+    logoUrl: "https://www.gstatic.com/images/branding/product/2x/hh_workspace_64dp.png",
+    category: "Productivity",
+    emailPatterns: [],  // Matched by subject line containing "google workspace" from payments-noreply@google.com
   },
   {
     name: "Microsoft Azure",
@@ -195,7 +202,7 @@ export const vendorSeedData: NewVendor[] = [
     slug: "anthropic",
     logoUrl: "https://www.anthropic.com/favicon.ico",
     category: "AI/ML",
-    emailPatterns: ["@anthropic.com"],
+    emailPatterns: ["@anthropic.com", "@mail.anthropic.com"],
   },
   {
     name: "Replicate",
@@ -618,5 +625,28 @@ export const vendorSeedData: NewVendor[] = [
     logoUrl: "https://porkbun.com/favicon.ico",
     category: "Other",
     emailPatterns: ["@porkbun.com"],
+  },
+
+  // Sales & Marketing
+  {
+    name: "Apollo",
+    slug: "apollo",
+    logoUrl: "https://www.apollo.io/favicon.ico",
+    category: "Analytics",
+    emailPatterns: ["@apollo.io"],
+  },
+  {
+    name: "Genspark",
+    slug: "genspark",
+    logoUrl: "https://genspark.ai/favicon.ico",
+    category: "AI/ML",
+    emailPatterns: ["@genspark.ai"],
+  },
+  {
+    name: "Cursor",
+    slug: "cursor",
+    logoUrl: "https://cursor.sh/favicon.ico",
+    category: "Dev Tools",
+    emailPatterns: ["@cursor.sh", "@cursor.com"],
   },
 ];

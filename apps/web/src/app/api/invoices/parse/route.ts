@@ -121,40 +121,99 @@ export async function POST(request: Request) {
       const emailFrom = email.from.toLowerCase();
       const emailSubject = email.subject.toLowerCase();
       
-      // Strategy 1: Check if this is a Stripe/payment processor receipt with vendor name in subject
+      // Strategy 1: Special handling for Google payments (payments-noreply@google.com)
+      // Differentiate Google Cloud vs Google Workspace by subject line
+      if (emailFrom.includes("payments-noreply@google.com")) {
+        if (emailSubject.includes("google workspace") || emailSubject.includes("workspace")) {
+          matchedVendor = vendorsToProcess.find(v => v.slug === "google-workspace");
+          if (matchedVendor) {
+            console.log(`Matched Google Workspace from subject`);
+          }
+        } else if (emailSubject.includes("google cloud") || emailSubject.includes("cloud")) {
+          matchedVendor = vendorsToProcess.find(v => v.slug === "gcp");
+          if (matchedVendor) {
+            console.log(`Matched Google Cloud from subject`);
+          }
+        }
+        // Default to Google Cloud for payments-noreply@google.com
+        if (!matchedVendor) {
+          matchedVendor = vendorsToProcess.find(v => v.slug === "gcp");
+          console.log(`Defaulting Google payment to Google Cloud`);
+        }
+      }
+      
+      // Strategy 2: Check if this is a Stripe/payment processor receipt with vendor name in subject
+      // Parse "Your receipt from X Corporation" or "Your receipt from X Inc" etc.
       const isPaymentProcessor = emailFrom.includes("stripe.com") || 
                                   emailFrom.includes("paddle.com") || 
                                   emailFrom.includes("chargebee.com");
       
-      if (isPaymentProcessor) {
-        // Look for vendor name in subject like "Your receipt from Railway Corporation"
-        for (const v of vendorsToProcess) {
-          if (emailSubject.includes(v.name.toLowerCase()) || 
-              emailSubject.includes(v.slug.toLowerCase())) {
-            matchedVendor = v;
-            console.log(`Matched vendor ${v.name} from Stripe receipt subject`);
-            break;
+      if (!matchedVendor && isPaymentProcessor) {
+        // Extract vendor name from subject like "Your receipt from Railway Corporation"
+        const receiptMatch = emailSubject.match(/receipt from\s+(.+?)(?:\s+(?:inc\.?|llc|corp\.?|corporation|ltd\.?|limited|\(dba\).*?))?$/i);
+        if (receiptMatch) {
+          let vendorFromSubject = receiptMatch[1].trim();
+          
+          // Handle "(dba) Name" pattern - e.g., "ZenLeads Inc. (dba) Apollo" -> "Apollo"
+          const dbaMatch = emailSubject.match(/\(dba\)\s*(\w+)/i);
+          if (dbaMatch) {
+            vendorFromSubject = dbaMatch[1];
+          }
+          
+          console.log(`Extracted vendor from Stripe subject: "${vendorFromSubject}"`);
+          
+          // Try to match against our vendor list
+          for (const v of vendorsToProcess) {
+            const vNameLower = v.name.toLowerCase();
+            const vSlugLower = v.slug.toLowerCase();
+            const subjectVendorLower = vendorFromSubject.toLowerCase();
+            
+            if (vNameLower === subjectVendorLower || 
+                vSlugLower === subjectVendorLower ||
+                vNameLower.includes(subjectVendorLower) ||
+                subjectVendorLower.includes(vNameLower)) {
+              matchedVendor = v;
+              console.log(`Matched vendor ${v.name} from Stripe receipt subject`);
+              break;
+            }
           }
         }
       }
       
-      // Strategy 2: Match by email domain pattern
+      // Strategy 3: Match by email domain pattern
       if (!matchedVendor) {
         for (const v of vendorsToProcess) {
-          if (v.emailPatterns?.some(pattern => emailFrom.includes(pattern.replace("@", "")))) {
+          if (v.emailPatterns?.some(pattern => {
+            // Handle both "@domain.com" and "user@domain.com" patterns
+            const normalizedPattern = pattern.toLowerCase();
+            if (normalizedPattern.startsWith("@")) {
+              return emailFrom.includes(normalizedPattern);
+            } else {
+              return emailFrom.includes(normalizedPattern);
+            }
+          })) {
             matchedVendor = v;
+            console.log(`Matched vendor ${v.name} from email pattern`);
             break;
           }
         }
       }
       
-      // Strategy 3: Match by parsed vendor name
+      // Strategy 4: Match by parsed vendor name from OpenAI
       if (!matchedVendor && parsed.vendorName) {
-        // First try exact match in our vendor list
+        const parsedNameLower = parsed.vendorName.toLowerCase();
+        
+        // First try exact/close match in our vendor list
         for (const v of vendorsToProcess) {
-          if (v.name.toLowerCase() === parsed.vendorName.toLowerCase() ||
-              v.slug.toLowerCase() === parsed.vendorName.toLowerCase()) {
+          const vNameLower = v.name.toLowerCase();
+          const vSlugLower = v.slug.toLowerCase();
+          
+          if (vNameLower === parsedNameLower ||
+              vSlugLower === parsedNameLower ||
+              vNameLower.includes(parsedNameLower) ||
+              parsedNameLower.includes(vNameLower)) {
             matchedVendor = v;
+            console.log(`Matched vendor ${v.name} from parsed name`);
             break;
           }
         }
@@ -164,6 +223,9 @@ export async function POST(request: Request) {
           matchedVendor = await db.query.vendors.findFirst({
             where: ilike(vendors.name, `%${parsed.vendorName}%`),
           });
+          if (matchedVendor) {
+            console.log(`Matched vendor ${matchedVendor.name} from DB fuzzy search`);
+          }
         }
       }
         
