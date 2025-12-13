@@ -1,4 +1,4 @@
-import type { NewVendor } from "../schema.js";
+import type { NewVendor } from "../schema";
 
 export const vendorSeedData: NewVendor[] = [
   // Cloud
@@ -7,14 +7,21 @@ export const vendorSeedData: NewVendor[] = [
     slug: "aws",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg",
     category: "Cloud",
-    emailPatterns: ["no-reply@marketplace.aws", "aws-billing@amazon.com", "noreply@amazon.com"],
+    emailPatterns: ["no-reply@marketplace.aws", "aws-billing@amazon.com", "noreply@amazon.com", "aws-receivables-support@email.amazon.com"],
   },
   {
     name: "Google Cloud",
     slug: "gcp",
     logoUrl: "https://www.gstatic.com/devrel-devsite/prod/v1241c04ebcb2127897d6c18571d41b0e0bd58db3eeb1d88c88f435e48756bca2/cloud/images/favicons/onecloud/super_cloud.png",
     category: "Cloud",
-    emailPatterns: ["billing-noreply@google.com", "cloud-noreply@google.com"],
+    emailPatterns: ["billing-noreply@google.com", "cloud-noreply@google.com", "google-cloud-billing-noreply@google.com"],
+  },
+  {
+    name: "Factory",
+    slug: "factory",
+    logoUrl: "https://factory.ai/favicon.ico",
+    category: "Dev Tools",
+    emailPatterns: ["billing@factory.ai", "noreply@factory.ai", "team@factory.ai"],
   },
   {
     name: "Microsoft Azure",
