@@ -20,6 +20,7 @@ export interface ParsedInvoice {
   invoiceNumber: string | null;
   description: string | null;
   confidenceScore: number;
+  extractedAmounts: string[]; // All amounts found in email for verification
 }
 
 // Pre-extract dollar amounts from text using regex
@@ -117,6 +118,9 @@ export async function parseInvoiceEmail(email: {
   
   console.log(`Found amounts in "${email.subject}":`, { primaryAmount, allAmounts: foundAmounts.slice(0, 5) });
   
+  // Format amounts as strings for storage
+  const extractedAmountsStr = foundAmounts.slice(0, 10).map(a => `$${a.toFixed(2)}`);
+  
   // If no dollar amounts found at all, skip the API call
   if (foundAmounts.length === 0) {
     console.log(`No dollar amounts found in email, skipping: "${email.subject}"`);
@@ -131,6 +135,7 @@ export async function parseInvoiceEmail(email: {
       invoiceNumber: null,
       description: null,
       confidenceScore: 0.3,
+      extractedAmounts: [],
     };
   }
 
@@ -161,6 +166,7 @@ export async function parseInvoiceEmail(email: {
       // Override with our high-confidence primary amount
       parsed.amount = primaryAmount;
       parsed.confidenceScore = Math.max(parsed.confidenceScore, 0.9);
+      parsed.extractedAmounts = extractedAmountsStr;
       
       return parsed;
     } catch (error) {
@@ -177,6 +183,7 @@ export async function parseInvoiceEmail(email: {
         invoiceNumber: null,
         description: null,
         confidenceScore: 0.8,
+        extractedAmounts: extractedAmountsStr,
       };
     }
   }
@@ -210,6 +217,9 @@ export async function parseInvoiceEmail(email: {
         parsed.amount = likelyTotal;
       }
     }
+    
+    // Add extracted amounts for verification
+    parsed.extractedAmounts = extractedAmountsStr;
     
     return parsed;
   } catch (error) {

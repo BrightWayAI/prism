@@ -46,6 +46,12 @@ export async function GET(request: Request) {
         vendorSlug: vendors.slug,
         vendorLogo: vendors.logoUrl,
         vendorCategory: vendors.category,
+        // Email metadata for verification
+        emailSubject: invoices.emailSubject,
+        emailFrom: invoices.emailFrom,
+        emailDate: invoices.emailDate,
+        extractedAmounts: invoices.extractedAmounts,
+        rawEmailSnippet: invoices.rawEmailSnippet,
       })
       .from(invoices)
       .leftJoin(vendors, eq(invoices.vendorId, vendors.id))

@@ -250,9 +250,9 @@ export async function POST(request: Request) {
         }
       }
 
-      // Store invoice
+      // Store invoice with email metadata for verification
       try {
-        await db.insert(invoices).values({
+        const insertResult = await db.insert(invoices).values({
           userId: session.user.id,
           vendorId,
           gmailMessageId: message.id,
@@ -264,9 +264,15 @@ export async function POST(request: Request) {
           billingFrequency: parsed.billingFrequency,
           invoiceNumber: parsed.invoiceNumber || null,
           rawEmailSnippet: email.snippet || "",
+          // Email metadata for verification
+          emailSubject: email.subject,
+          emailFrom: email.from,
+          emailDate: email.date,
+          extractedAmounts: parsed.extractedAmounts || [],
           confidenceScore: (parsed.confidenceScore || 0).toFixed(2),
           isManuallyReviewed: false,
-        });
+        }).onConflictDoNothing(); // Prevent duplicates on (userId, gmailMessageId)
+        
         results.success++;
       } catch (dbErr) {
         console.error("DB insert error:", dbErr);

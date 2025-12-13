@@ -153,6 +153,11 @@ export const invoices = pgTable(
     billingFrequency: billingFrequencyEnum("billing_frequency"),
     invoiceNumber: text("invoice_number"),
     rawEmailSnippet: text("raw_email_snippet"),
+    // Email metadata for verification
+    emailSubject: text("email_subject"),
+    emailFrom: text("email_from"),
+    emailDate: text("email_date"),
+    extractedAmounts: text("extracted_amounts").array(), // All $ amounts found in email
     pdfUrl: text("pdf_url"),
     confidenceScore: decimal("confidence_score", { precision: 3, scale: 2 }),
     isManuallyReviewed: boolean("is_manually_reviewed").default(false).notNull(),
