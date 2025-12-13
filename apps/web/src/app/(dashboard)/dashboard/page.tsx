@@ -9,11 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, RefreshCw, Calendar, ChevronDown } from "lucide-react";
 
 const DATE_RANGES = [
-  { label: "Last 30 days", value: 30 },
-  { label: "Last 90 days", value: 90 },
-  { label: "Last 6 months", value: 180 },
-  { label: "Last 12 months", value: 365 },
-  { label: "All time", value: 0 },
+  { label: "This month", value: "current" },
+  { label: "Last month", value: "last" },
+  { label: "Last 3 months", value: "3m" },
+  { label: "Last 6 months", value: "6m" },
+  { label: "Last 12 months", value: "12m" },
+  { label: "All time", value: "all" },
 ];
 
 interface Service {
@@ -45,14 +46,14 @@ export default function DashboardPage() {
   const [parsing, setParsing] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState(180); // Default to 6 months
+  const [dateRange, setDateRange] = useState("current"); // Default to current month
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const fetchDashboard = async (days: number = dateRange) => {
+  const fetchDashboard = async (range: string = dateRange) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (days > 0) params.set("daysBack", days.toString());
+      params.set("range", range);
       
       const res = await fetch(`/api/dashboard?${params.toString()}`);
       if (!res.ok) {
@@ -71,10 +72,10 @@ export default function DashboardPage() {
     }
   };
   
-  const handleDateRangeChange = (days: number) => {
-    setDateRange(days);
+  const handleDateRangeChange = (range: string) => {
+    setDateRange(range);
     setShowDatePicker(false);
-    fetchDashboard(days);
+    fetchDashboard(range);
   };
 
   const handleScanInvoices = async () => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, invoices, vendors } from "@prism/db";
-import { eq, desc, gte, sql, and } from "drizzle-orm";
+import { eq, desc, gte, lte, sql, and } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -10,21 +10,45 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get daysBack from query params
+  // Get range from query params
   const { searchParams } = new URL(request.url);
-  const daysBack = parseInt(searchParams.get("daysBack") || "180", 10);
+  const range = searchParams.get("range") || "current";
 
   try {
-    // Get date ranges
+    // Get date ranges based on selection
     const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // End of current month
+    
+    switch (range) {
+      case "current":
+        // Current month only
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case "last":
+        // Last month only
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        break;
+      case "3m":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        break;
+      case "6m":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        break;
+      case "12m":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        break;
+      case "all":
+      default:
+        startDate = new Date(2020, 0, 1);
+        break;
+    }
+    
+    // For comparison (previous period)
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    
-    // Calculate start date based on daysBack (0 = all time)
-    const startDate = daysBack > 0 
-      ? new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
-      : new Date(2020, 0, 1); // Far past date for "all time"
 
     // Get all invoices for the user
     const allInvoices = await db
@@ -45,7 +69,8 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(invoices.userId, session.user.id),
-          gte(invoices.invoiceDate, startDate)
+          gte(invoices.invoiceDate, startDate),
+          lte(invoices.invoiceDate, endDate)
         )
       )
       .orderBy(desc(invoices.invoiceDate));
@@ -125,18 +150,19 @@ export async function GET(request: Request) {
 
     // Calculate totals
     const services = Object.values(vendorSpend).filter((v) => v.vendorId !== "unknown");
-    const totalCurrentSpend = services.reduce((sum, v) => sum + v.currentMonthSpend, 0);
+    const totalSpendInRange = services.reduce((sum, v) => sum + v.totalSpend, 0);
     const totalPreviousSpend = services.reduce((sum, v) => sum + v.previousMonthSpend, 0);
 
-    // Sort by current month spend
-    services.sort((a, b) => b.currentMonthSpend - a.currentMonthSpend);
+    // Sort by total spend in the selected range
+    services.sort((a, b) => b.totalSpend - a.totalSpend);
 
     return NextResponse.json({
-      totalSpend: totalCurrentSpend,
+      totalSpend: totalSpendInRange,
       previousSpend: totalPreviousSpend,
       serviceCount: services.length,
       invoiceCount: allInvoices.length,
       services,
+      range,
     });
   } catch (error) {
     console.error("Dashboard error:", error);

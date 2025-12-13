@@ -649,4 +649,25 @@ export const vendorSeedData: NewVendor[] = [
     category: "Dev Tools",
     emailPatterns: ["@cursor.sh", "@cursor.com"],
   },
+  {
+    name: "xAI",
+    slug: "xai",
+    logoUrl: "https://x.ai/favicon.ico",
+    category: "AI/ML",
+    emailPatterns: ["@x.ai", "@xai.com"],
+  },
+  {
+    name: "Smartlead",
+    slug: "smartlead",
+    logoUrl: "https://smartlead.ai/favicon.ico",
+    category: "Analytics",
+    emailPatterns: ["@smartlead.ai"],
+  },
+  {
+    name: "Every",
+    slug: "every",
+    logoUrl: "https://every.to/favicon.ico",
+    category: "Productivity",
+    emailPatterns: ["@every.to", "@every.com"],
+  },
 ];
