@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState(180); // Default to 6 months
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -102,6 +103,31 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : "Failed to scan invoices");
     } finally {
       setParsing(false);
+    }
+  };
+
+  const handleClearData = async () => {
+    if (!confirm("Are you sure you want to clear all invoice data? This cannot be undone.")) {
+      return;
+    }
+    
+    setClearing(true);
+    try {
+      const res = await fetch("/api/data/clear", {
+        method: "POST",
+      });
+      
+      if (!res.ok) throw new Error("Failed to clear data");
+      
+      const result = await res.json();
+      console.log("Clear result:", result);
+      
+      // Refresh dashboard data
+      await fetchDashboard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear data");
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -181,8 +207,19 @@ export default function DashboardPage() {
             
             <Button
               variant="outline"
+              onClick={handleClearData}
+              disabled={clearing || parsing}
+            >
+              {clearing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {clearing ? "Clearing..." : "Clear Data"}
+            </Button>
+            
+            <Button
+              variant="outline"
               onClick={handleScanInvoices}
-              disabled={parsing}
+              disabled={parsing || clearing}
             >
               {parsing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
