@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { searchInvoiceEmails, getEmailContent } from "@/lib/gmail";
 import { parseInvoiceEmail } from "@/lib/parser";
 import { db, invoices, vendors, userVendors } from "@prism/db";
-import { eq, and, ilike } from "drizzle-orm";
+import { eq, and, ilike, inArray } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -13,14 +13,26 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { startDate, endDate, vendorIds } = body;
+  const { daysBack = 90, vendorIds } = body;
 
   try {
-    // Get emails from Gmail
+    // Get the vendors we're searching for
+    let vendorsToProcess;
+    if (vendorIds && vendorIds.length > 0) {
+      vendorsToProcess = await db.query.vendors.findMany({
+        where: inArray(vendors.id, vendorIds),
+      });
+    } else {
+      vendorsToProcess = await db.query.vendors.findMany();
+    }
+
+    console.log(`Processing ${vendorsToProcess.length} vendors`);
+
+    // Get emails from known vendors only
     const messages = await searchInvoiceEmails(session.user.id, {
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      maxResults: 50,
+      daysBack,
+      vendorIds,
+      maxResults: 100,
     });
 
     const results: { success: number; failed: number; skipped: number } = {
@@ -102,31 +114,44 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Match vendor
+      // Match vendor by email domain first, then by parsed name
       let vendorId: string | null = null;
-      if (parsed.vendorName) {
-        const matchedVendor = await db.query.vendors.findFirst({
+      let matchedVendor = null;
+      
+      // Try to match by email pattern
+      const emailDomain = email.from.toLowerCase();
+      for (const v of vendorsToProcess) {
+        if (v.emailPatterns?.some(pattern => emailDomain.includes(pattern.replace("@", "")))) {
+          matchedVendor = v;
+          break;
+        }
+      }
+      
+      // Fallback to name matching
+      if (!matchedVendor && parsed.vendorName) {
+        matchedVendor = await db.query.vendors.findFirst({
           where: ilike(vendors.name, `%${parsed.vendorName}%`),
         });
+      }
         
-        if (matchedVendor) {
-          vendorId = matchedVendor.id;
+      if (matchedVendor) {
+        vendorId = matchedVendor.id;
+        console.log(`Matched vendor: ${matchedVendor.name} for email from ${email.from}`);
           
-          // Auto-add to user's tracked vendors if not already
-          const existingUserVendor = await db.query.userVendors.findFirst({
-            where: and(
-              eq(userVendors.userId, session.user.id),
-              eq(userVendors.vendorId, matchedVendor.id)
-            ),
+        // Auto-add to user's tracked vendors if not already
+        const existingUserVendor = await db.query.userVendors.findFirst({
+          where: and(
+            eq(userVendors.userId, session.user.id),
+            eq(userVendors.vendorId, matchedVendor.id)
+          ),
+        });
+        
+        if (!existingUserVendor) {
+          await db.insert(userVendors).values({
+            userId: session.user.id,
+            vendorId: matchedVendor.id,
+            isActive: true,
           });
-          
-          if (!existingUserVendor) {
-            await db.insert(userVendors).values({
-              userId: session.user.id,
-              vendorId: matchedVendor.id,
-              isActive: true,
-            });
-          }
         }
       }
 

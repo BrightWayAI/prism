@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { detectServicesInInbox } from "@/lib/gmail";
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await auth();
   
   if (!session?.user?.id) {
@@ -10,7 +10,10 @@ export async function POST() {
   }
 
   try {
-    const detectedServices = await detectServicesInInbox(session.user.id);
+    const body = await request.json().catch(() => ({}));
+    const daysBack = body.daysBack || 90;
+    
+    const detectedServices = await detectServicesInInbox(session.user.id, daysBack);
     
     return NextResponse.json({
       services: detectedServices.map((s) => ({
