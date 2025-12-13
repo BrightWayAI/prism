@@ -63,6 +63,23 @@ export async function searchInvoiceEmails(
     }
   }
 
+  // IMPORTANT: Always include payment processors (Stripe, Paddle, etc.)
+  // These send receipts on behalf of vendors - we parse vendor from subject line
+  const paymentProcessors = [
+    "@stripe.com",
+    "@paddle.com", 
+    "@chargebee.com",
+    "@recurly.com",
+    "@braintreegateway.com",
+    "payments-noreply@google.com",  // Google Cloud/Workspace payments
+  ];
+  
+  for (const processor of paymentProcessors) {
+    if (!allPatterns.includes(processor)) {
+      allPatterns.push(processor);
+    }
+  }
+
   if (allPatterns.length === 0) {
     console.log("No vendor email patterns found");
     return [];
@@ -217,6 +234,23 @@ export async function detectServicesInInbox(userId: string, daysBack: number = 9
     } catch (error) {
       console.error(`Error searching for ${vendor.name}:`, error);
     }
+  }
+
+  // Also check for Stripe receipts and extract vendor names from subjects
+  // This catches vendors that only use Stripe (no direct email patterns)
+  const stripeQuery = `from:@stripe.com subject:"receipt from" after:${afterDate}`;
+  try {
+    const stripeResponse = await gmail.users.messages.list({
+      userId: "me",
+      q: stripeQuery,
+      maxResults: 50,
+    });
+    
+    if (stripeResponse.data.messages && stripeResponse.data.messages.length > 0) {
+      console.log(`Found ${stripeResponse.data.messages.length} Stripe receipts to check for vendors`);
+    }
+  } catch (error) {
+    console.error("Error searching Stripe receipts:", error);
   }
 
   return detectedServices.sort((a, b) => b.emailCount - a.emailCount);
