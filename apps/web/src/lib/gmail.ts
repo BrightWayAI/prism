@@ -91,7 +91,8 @@ export async function searchInvoiceEmails(
   const afterDate = date.toISOString().split("T")[0].replace(/-/g, "/");
   
   const fromQuery = allPatterns.map(p => `from:${p}`).join(" OR ");
-  const searchQuery = `(${fromQuery}) (receipt OR invoice OR "payment" OR "charged" OR "billing" OR "statement") after:${afterDate}`;
+  // Only search for actual receipts and invoices - exclude alerts, reminders, etc.
+  const searchQuery = `(${fromQuery}) (receipt OR invoice OR "payment received" OR "payment confirmed" OR "successfully charged") -"budget alert" -"budget reached" -reminder -"payment due" -"payment failed" after:${afterDate}`;
   
   console.log("Gmail search query (vendors only):", searchQuery.slice(0, 200) + "...");
 

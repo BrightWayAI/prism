@@ -143,39 +143,60 @@ export async function POST(request: Request) {
       }
       
       // Strategy 2: Check if this is a Stripe/payment processor receipt with vendor name in subject
-      // Parse "Your receipt from X Corporation" or "Your receipt from X Inc" etc.
       const isPaymentProcessor = emailFrom.includes("stripe.com") || 
                                   emailFrom.includes("paddle.com") || 
                                   emailFrom.includes("chargebee.com");
       
       if (!matchedVendor && isPaymentProcessor) {
-        // Extract vendor name from subject like "Your receipt from Railway Corporation"
-        const receiptMatch = emailSubject.match(/receipt from\s+(.+?)(?:\s+(?:inc\.?|llc|corp\.?|corporation|ltd\.?|limited|\(dba\).*?))?$/i);
-        if (receiptMatch) {
-          let vendorFromSubject = receiptMatch[1].trim();
-          
-          // Handle "(dba) Name" pattern - e.g., "ZenLeads Inc. (dba) Apollo" -> "Apollo"
-          const dbaMatch = emailSubject.match(/\(dba\)\s*(\w+)/i);
-          if (dbaMatch) {
-            vendorFromSubject = dbaMatch[1];
+        // Extract vendor name from "Your receipt from X" - get everything after "from"
+        // Subject examples:
+        // - "Your receipt from Railway Corporation" -> "Railway Corporation"
+        // - "Your receipt from ZenLeads Inc. (dba) Apollo" -> "Apollo" (use dba name)
+        // - "Your receipt from Calendly" -> "Calendly"
+        
+        let vendorFromSubject: string | null = null;
+        
+        // First check for (dba) pattern - the dba name is the actual brand
+        const dbaMatch = emailSubject.match(/\(dba\)\s*(\w+)/i);
+        if (dbaMatch) {
+          vendorFromSubject = dbaMatch[1];
+          console.log(`Found dba vendor: "${vendorFromSubject}"`);
+        } else {
+          // Get everything after "from " to end of subject
+          const fromMatch = emailSubject.match(/from\s+(.+)$/i);
+          if (fromMatch) {
+            vendorFromSubject = fromMatch[1].trim();
+            // Strip common suffixes
+            vendorFromSubject = vendorFromSubject
+              .replace(/\s+(inc\.?|llc|corp\.?|corporation|ltd\.?|limited|co\.?)$/i, "")
+              .trim();
+            console.log(`Found vendor from subject: "${vendorFromSubject}"`);
           }
-          
-          console.log(`Extracted vendor from Stripe subject: "${vendorFromSubject}"`);
+        }
+        
+        if (vendorFromSubject) {
+          const subjectVendorLower = vendorFromSubject.toLowerCase();
           
           // Try to match against our vendor list
           for (const v of vendorsToProcess) {
             const vNameLower = v.name.toLowerCase();
             const vSlugLower = v.slug.toLowerCase();
-            const subjectVendorLower = vendorFromSubject.toLowerCase();
             
+            // Exact match or contains
             if (vNameLower === subjectVendorLower || 
                 vSlugLower === subjectVendorLower ||
-                vNameLower.includes(subjectVendorLower) ||
-                subjectVendorLower.includes(vNameLower)) {
+                subjectVendorLower.includes(vNameLower) ||
+                vNameLower.includes(subjectVendorLower)) {
               matchedVendor = v;
-              console.log(`Matched vendor ${v.name} from Stripe receipt subject`);
+              console.log(`Matched vendor ${v.name} from payment processor receipt`);
               break;
             }
+          }
+          
+          // If no match found in our list, we could create a dynamic vendor
+          // For now, just log it
+          if (!matchedVendor) {
+            console.log(`No vendor match for "${vendorFromSubject}" - will use parsed name`);
           }
         }
       }

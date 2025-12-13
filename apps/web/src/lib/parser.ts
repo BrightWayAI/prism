@@ -77,14 +77,20 @@ function extractDollarAmounts(text: string): { amounts: number[]; primaryAmount:
 
 const EXTRACTION_PROMPT = `You are extracting invoice/receipt data from an email. Return valid JSON only.
 
-FOUND DOLLAR AMOUNTS IN EMAIL: {amounts}
+IMPORTANT: This email must be an ACTUAL INVOICE or RECEIPT to extract data. 
+NOT invoices/receipts (return confidenceScore below 0.3):
+- Budget alerts ("Budget Alert", "budget reached")
+- Payment reminders or notifications
+- Marketing emails
+- Account summaries without a charge
+- Newsletters
 
-Extract the billing information. The amounts above were found in the email - pick the one that represents the TOTAL charge.
+FOUND DOLLAR AMOUNTS IN EMAIL: {amounts}
 
 Return this exact JSON structure:
 {
   "vendorName": "company name",
-  "amount": <number or null - use one of the amounts above if this is an invoice>,
+  "amount": <number or null>,
   "currency": "USD",
   "invoiceDate": "YYYY-MM-DD",
   "billingPeriodStart": null,
@@ -96,8 +102,9 @@ Return this exact JSON structure:
 }
 
 Rules:
-- amount: Pick the total charge from the amounts list. Use null only if NO amounts were found or this isn't a real invoice.
-- confidenceScore: 0.9+ if clear invoice/receipt with amount, 0.5-0.8 if unclear, below 0.5 if NOT an invoice (newsletter, notification, etc.)
+- amount: Use null if this is NOT a real invoice/receipt
+- confidenceScore: 0.9+ ONLY if email contains words like "receipt", "invoice", "payment received", "charged", "paid"
+- confidenceScore: below 0.3 for budget alerts, notifications, reminders, marketing
 
 Email Subject: {subject}
 From: {from}
@@ -106,12 +113,73 @@ Date: {date}
 Content (first 4000 chars):
 {content}`;
 
+// Check if email is actually an invoice/receipt (not a notification, alert, etc.)
+function isLikelyInvoiceOrReceipt(subject: string, content: string): boolean {
+  const text = `${subject} ${content}`.toLowerCase();
+  
+  // Must have at least one of these keywords
+  const invoiceKeywords = [
+    "receipt", 
+    "invoice", 
+    "payment received",
+    "payment confirmed",
+    "your payment of",
+    "payment amount of",
+    "successfully charged",
+    "has been charged",
+    "transaction complete",
+    "order confirmation",
+    "purchase confirmation",
+  ];
+  
+  const hasInvoiceKeyword = invoiceKeywords.some(kw => text.includes(kw));
+  
+  // Reject if it's clearly NOT an invoice
+  const rejectKeywords = [
+    "budget alert",
+    "budget reached", 
+    "budget exceeded",
+    "spending alert",
+    "usage alert",
+    "reminder",
+    "upcoming payment",
+    "payment due",
+    "payment failed",
+    "update your payment",
+    "verify your",
+    "confirm your email",
+    "welcome to",
+    "getting started",
+    "newsletter",
+    "unsubscribe",
+  ];
+  
+  const hasRejectKeyword = rejectKeywords.some(kw => text.includes(kw));
+  
+  if (hasRejectKeyword) {
+    console.log(`Rejecting email (has reject keyword): "${subject.slice(0, 50)}..."`);
+    return false;
+  }
+  
+  if (!hasInvoiceKeyword) {
+    console.log(`Rejecting email (no invoice keyword): "${subject.slice(0, 50)}..."`);
+    return false;
+  }
+  
+  return true;
+}
+
 export async function parseInvoiceEmail(email: {
   subject: string;
   from: string;
   date: string;
   content: string;
 }): Promise<ParsedInvoice | null> {
+  // First check if this is even an invoice/receipt
+  if (!isLikelyInvoiceOrReceipt(email.subject, email.content)) {
+    return null;
+  }
+  
   // Pre-extract dollar amounts using regex
   const fullText = `${email.subject} ${email.content}`;
   const { amounts: foundAmounts, primaryAmount } = extractDollarAmounts(fullText);
