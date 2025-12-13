@@ -41,11 +41,9 @@ RUN chown nextjs:nodejs apps/web/.next
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
-# Copy Drizzle for migrations
+# Copy Drizzle and dependencies for migrations
 COPY --from=builder /app/packages/db ./packages/db
-COPY --from=builder /app/node_modules/drizzle-kit ./node_modules/drizzle-kit
-COPY --from=builder /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=builder /app/node_modules/postgres ./node_modules/postgres
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy start script
 COPY --from=builder /app/start.sh ./start.sh
@@ -58,4 +56,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "apps/web/server.js"]
+CMD ["./start.sh"]
