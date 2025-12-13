@@ -24,29 +24,40 @@ export async function getGmailClient(userId: string) {
   return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
+function buildInvoiceSearchQuery(daysBack: number = 90): string {
+  const date = new Date();
+  date.setDate(date.getDate() - daysBack);
+  const afterDate = date.toISOString().split("T")[0].replace(/-/g, "/");
+  
+  // Focus on actual invoices/receipts with dollar amounts
+  // Exclude newsletters, marketing, and account notifications
+  return `
+    (receipt OR invoice OR "billing statement" OR "payment confirmation" OR "payment received" OR "payment processed" OR "your payment" OR "successfully charged")
+    AND ("$" OR "USD" OR "EUR" OR "GBP" OR "total" OR "amount" OR "charged")
+    -unsubscribe 
+    -"free trial" 
+    -"trial expired"
+    -"verify your email"
+    -"update your payment"
+    -"add a payment"
+    -newsletter
+    -promotion
+    -"getting started"
+    -"welcome to"
+    -"confirm your"
+    after:${afterDate}
+  `.replace(/\s+/g, " ").trim();
+}
+
 export async function searchInvoiceEmails(
   userId: string,
-  options: { startDate?: Date; endDate?: Date; maxResults?: number } = {}
+  options: { startDate?: Date; endDate?: Date; maxResults?: number; daysBack?: number } = {}
 ) {
   const gmail = await getGmailClient(userId);
-  const { startDate, endDate, maxResults = 100 } = options;
+  const { maxResults = 100, daysBack = 90 } = options;
 
-  // Get all vendor email patterns
-  const allVendors = await db.query.vendors.findMany();
-  const emailPatterns = allVendors.flatMap((v) => v.emailPatterns || []);
-
-  // Build Gmail search query
-  const fromQuery = emailPatterns.map((p) => `from:${p}`).join(" OR ");
-  
-  let dateQuery = "";
-  if (startDate) {
-    dateQuery += ` after:${startDate.toISOString().split("T")[0].replace(/-/g, "/")}`;
-  }
-  if (endDate) {
-    dateQuery += ` before:${endDate.toISOString().split("T")[0].replace(/-/g, "/")}`;
-  }
-
-  const searchQuery = `(${fromQuery})${dateQuery} (invoice OR receipt OR payment OR billing OR charge OR subscription)`;
+  const searchQuery = buildInvoiceSearchQuery(daysBack);
+  console.log("Gmail search query:", searchQuery);
 
   const response = await gmail.users.messages.list({
     userId: "me",
@@ -54,6 +65,7 @@ export async function searchInvoiceEmails(
     maxResults,
   });
 
+  console.log(`Found ${response.data.messages?.length || 0} potential invoice emails`);
   return response.data.messages || [];
 }
 
@@ -125,8 +137,10 @@ export async function detectServicesInInbox(userId: string) {
   for (const vendor of allVendors) {
     if (!vendor.emailPatterns || vendor.emailPatterns.length === 0) continue;
 
+    // Build query using domain patterns
     const fromQuery = vendor.emailPatterns.map((p) => `from:${p}`).join(" OR ");
-    const searchQuery = `(${fromQuery}) (invoice OR receipt OR payment OR billing)`;
+    // Look for actual billing emails with dollar amounts
+    const searchQuery = `(${fromQuery}) (invoice OR receipt OR "payment" OR "charged" OR "billing") ("$" OR "total" OR "amount")`;
 
     try {
       const response = await gmail.users.messages.list({

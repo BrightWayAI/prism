@@ -24,27 +24,33 @@ export interface ParsedInvoice {
 
 const EXTRACTION_PROMPT = `You are an expert at extracting invoice and billing information from emails.
 
-Analyze the following email content and extract billing/invoice information.
+Analyze the following email and extract the invoice/receipt/payment information.
 
-Return ONLY a valid JSON object with these fields:
+CRITICAL: Look carefully for dollar amounts in these formats:
+- "$XX.XX" or "$ XX.XX"
+- "USD XX.XX" or "XX.XX USD"  
+- "Total: $XX.XX" or "Amount: $XX.XX"
+- "charged $XX.XX" or "payment of $XX.XX"
+- Numbers followed by currency codes
+
+Return ONLY a valid JSON object:
 {
-  "vendorName": "string - the company name sending the invoice/receipt",
-  "amount": number - the total amount charged (positive number, no currency symbols),
-  "currency": "string - 3-letter currency code like USD, EUR, GBP",
-  "invoiceDate": "string - ISO date format YYYY-MM-DD",
-  "billingPeriodStart": "string | null - ISO date if mentioned",
-  "billingPeriodEnd": "string | null - ISO date if mentioned", 
+  "vendorName": "string - the company/service name (e.g., 'Slack', 'AWS', 'OpenAI')",
+  "amount": number - the TOTAL amount charged as a positive number WITHOUT currency symbols (e.g., 29.99 not "$29.99"). Look for 'total', 'amount due', 'charged', 'payment'. If no amount found, use null NOT 0,
+  "currency": "string - 3-letter code: USD, EUR, GBP. Default to USD if dollar sign used",
+  "invoiceDate": "string - YYYY-MM-DD format, use the email date if invoice date not specified",
+  "billingPeriodStart": "string | null - YYYY-MM-DD if mentioned",
+  "billingPeriodEnd": "string | null - YYYY-MM-DD if mentioned", 
   "billingFrequency": "monthly | annual | usage | one_time | null",
-  "invoiceNumber": "string | null - invoice/receipt number if present",
-  "description": "string | null - brief description of what was charged",
-  "confidenceScore": number - 0 to 1, how confident you are in this extraction
+  "invoiceNumber": "string | null - invoice/receipt/order number",
+  "description": "string | null - what service/product was charged",
+  "confidenceScore": number - 0.0 to 1.0. Use 0.9+ if clear amount found, 0.5-0.8 if amount unclear, below 0.5 if this is NOT an actual invoice/receipt
 }
 
-Important:
-- Extract the TOTAL amount charged, not individual line items
-- If you cannot determine a field with confidence, use null
-- For amounts, extract just the number (e.g., 29.99 not "$29.99")
-- Only return the JSON object, no other text
+IMPORTANT:
+- If this is NOT an invoice/receipt/payment confirmation (e.g., it's a newsletter, notification, or marketing email), set confidenceScore below 0.5
+- If you cannot find a dollar amount, set amount to null (NOT 0)
+- Extract the TOTAL charged, not subtotals or individual items
 
 Email Subject: {subject}
 From: {from}

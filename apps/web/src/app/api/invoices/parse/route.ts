@@ -58,8 +58,22 @@ export async function POST(request: Request) {
         continue;
       }
       
-      if (!parsed || !parsed.amount || !parsed.invoiceDate || parsed.confidenceScore < 0.5) {
-        console.log("Skipping low confidence or incomplete parse:", parsed);
+      if (!parsed) {
+        console.log("No parse result");
+        results.failed++;
+        continue;
+      }
+
+      // Skip non-invoices (newsletters, notifications, etc.)
+      if (parsed.confidenceScore < 0.5) {
+        console.log("Skipping low confidence (not an invoice):", parsed.vendorName, parsed.confidenceScore);
+        results.failed++;
+        continue;
+      }
+
+      // Skip if no amount found (amount is null or 0)
+      if (parsed.amount === null || parsed.amount === undefined || parsed.amount === 0) {
+        console.log("Skipping - no amount found:", parsed.vendorName, parsed.amount);
         results.failed++;
         continue;
       }
@@ -67,7 +81,14 @@ export async function POST(request: Request) {
       // Validate parsed data
       const amount = typeof parsed.amount === 'number' ? parsed.amount : parseFloat(String(parsed.amount));
       if (isNaN(amount) || amount <= 0) {
-        console.log("Invalid amount:", parsed.amount);
+        console.log("Invalid amount:", parsed.vendorName, parsed.amount);
+        results.failed++;
+        continue;
+      }
+
+      // Skip if no date
+      if (!parsed.invoiceDate) {
+        console.log("Skipping - no date:", parsed.vendorName);
         results.failed++;
         continue;
       }
