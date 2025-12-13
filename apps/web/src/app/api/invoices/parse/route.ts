@@ -47,6 +47,7 @@ export async function POST(request: Request) {
 
       // Get email content
       const email = await getEmailContent(session.user.id, message.id);
+      console.log(`Processing email: "${email.subject}" from "${email.from}"`);
       
       // Parse with OpenAI
       let parsed;
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
       // Skip if no amount found (amount is null or 0)
       if (parsed.amount === null || parsed.amount === undefined || parsed.amount === 0) {
-        console.log("Skipping - no amount found:", parsed.vendorName, parsed.amount);
+        console.log(`Skipping - no amount found for "${email.subject}":`, parsed.vendorName, parsed.amount);
         results.failed++;
         continue;
       }
