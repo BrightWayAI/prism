@@ -12,7 +12,7 @@
   "dependencies": {
     "@prism/db": "*",
     "@prism/shared": "*",
-    "@anthropic-ai/sdk": "^0.32.1",
+    "openai": "^4.73.0",
     "@auth/drizzle-adapter": "^1.7.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

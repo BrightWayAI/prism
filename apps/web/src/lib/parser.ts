@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export interface ParsedInvoice {
@@ -54,8 +54,8 @@ export async function parseInvoiceEmail(email: {
   date: string;
   content: string;
 }): Promise<ParsedInvoice | null> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("ANTHROPIC_API_KEY not set");
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not set");
     return null;
   }
 
@@ -66,13 +66,13 @@ export async function parseInvoiceEmail(email: {
     .replace("{content}", email.content.slice(0, 8000));
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
+      max_tokens: 1024,
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.choices[0]?.message?.content || "";
     
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
