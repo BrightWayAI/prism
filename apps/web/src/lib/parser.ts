@@ -1,8 +1,13 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not set");
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 export interface ParsedInvoice {
   vendorName: string;
@@ -54,11 +59,6 @@ export async function parseInvoiceEmail(email: {
   date: string;
   content: string;
 }): Promise<ParsedInvoice | null> {
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY not set");
-    return null;
-  }
-
   const prompt = EXTRACTION_PROMPT
     .replace("{subject}", email.subject)
     .replace("{from}", email.from)
@@ -66,6 +66,7 @@ export async function parseInvoiceEmail(email: {
     .replace("{content}", email.content.slice(0, 8000));
 
   try {
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
