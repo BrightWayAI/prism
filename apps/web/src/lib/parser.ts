@@ -23,21 +23,43 @@ export interface ParsedInvoice {
 }
 
 // Pre-extract dollar amounts from text using regex
-function extractDollarAmounts(text: string): number[] {
+function extractDollarAmounts(text: string): { amounts: number[]; primaryAmount: number | null } {
   const amounts: number[] = [];
+  let primaryAmount: number | null = null;
   
-  // Match patterns like $29.99, $ 29.99, $1,234.56
-  const patterns = [
+  // High-priority patterns - these usually indicate the actual charge amount
+  const primaryPatterns = [
+    /payment\s+amount\s+of\s+\$\s*([\d,]+\.?\d*)/gi,
+    /your\s+payment\s+of\s+\$\s*([\d,]+\.?\d*)/gi,
+    /total\s+charged[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
+    /amount\s+charged[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
+    /total\s+amount[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
+    /amount\s+due[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
+    /you\s+paid[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
+    /charged\s+\$\s*([\d,]+\.?\d*)/gi,
+  ];
+  
+  // Try primary patterns first to find the main amount
+  for (const pattern of primaryPatterns) {
+    const match = pattern.exec(text);
+    if (match) {
+      const numStr = match[1].replace(/,/g, "");
+      const num = parseFloat(numStr);
+      if (!isNaN(num) && num > 0 && num < 1000000) {
+        primaryAmount = num;
+        break;
+      }
+    }
+  }
+  
+  // General patterns to find all amounts
+  const generalPatterns = [
     /\$\s*([\d,]+\.?\d*)/g,
     /USD\s*([\d,]+\.?\d*)/gi,
     /([\d,]+\.?\d*)\s*USD/gi,
-    /Total[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
-    /Amount[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
-    /charged[:\s]+\$?\s*([\d,]+\.?\d*)/gi,
-    /payment[:\s]+of?\s*\$?\s*([\d,]+\.?\d*)/gi,
   ];
   
-  for (const pattern of patterns) {
+  for (const pattern of generalPatterns) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
       const numStr = match[1].replace(/,/g, "");
@@ -48,7 +70,8 @@ function extractDollarAmounts(text: string): number[] {
     }
   }
   
-  return [...new Set(amounts)].sort((a, b) => b - a);
+  const uniqueAmounts = [...new Set(amounts)].sort((a, b) => b - a);
+  return { amounts: uniqueAmounts, primaryAmount };
 }
 
 const EXTRACTION_PROMPT = `You are extracting invoice/receipt data from an email. Return valid JSON only.
@@ -90,9 +113,9 @@ export async function parseInvoiceEmail(email: {
 }): Promise<ParsedInvoice | null> {
   // Pre-extract dollar amounts using regex
   const fullText = `${email.subject} ${email.content}`;
-  const foundAmounts = extractDollarAmounts(fullText);
+  const { amounts: foundAmounts, primaryAmount } = extractDollarAmounts(fullText);
   
-  console.log(`Found amounts in "${email.subject}":`, foundAmounts.slice(0, 5));
+  console.log(`Found amounts in "${email.subject}":`, { primaryAmount, allAmounts: foundAmounts.slice(0, 5) });
   
   // If no dollar amounts found at all, skip the API call
   if (foundAmounts.length === 0) {
@@ -111,6 +134,54 @@ export async function parseInvoiceEmail(email: {
     };
   }
 
+  // If we found a primary amount (from high-confidence patterns), use it directly
+  if (primaryAmount !== null) {
+    console.log(`Using primary amount from regex: $${primaryAmount}`);
+    
+    // Still call OpenAI for other fields but provide the amount hint
+    const prompt = EXTRACTION_PROMPT
+      .replace("{subject}", email.subject)
+      .replace("{from}", email.from)
+      .replace("{date}", email.date)
+      .replace("{amounts}", `PRIMARY: ${primaryAmount} (use this), others: ${foundAmounts.slice(0, 5).join(", ")}`)
+      .replace("{content}", email.content.slice(0, 4000));
+
+    try {
+      const openai = getOpenAIClient();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 512,
+      });
+
+      const text = response.choices[0]?.message?.content || "";
+      const parsed = JSON.parse(text) as ParsedInvoice;
+      
+      // Override with our high-confidence primary amount
+      parsed.amount = primaryAmount;
+      parsed.confidenceScore = Math.max(parsed.confidenceScore, 0.9);
+      
+      return parsed;
+    } catch (error) {
+      console.error("Error parsing invoice:", error);
+      // Return basic parsed result with primary amount
+      return {
+        vendorName: extractVendorFromEmail(email.from),
+        amount: primaryAmount,
+        currency: "USD",
+        invoiceDate: new Date().toISOString().split("T")[0],
+        billingPeriodStart: null,
+        billingPeriodEnd: null,
+        billingFrequency: null,
+        invoiceNumber: null,
+        description: null,
+        confidenceScore: 0.8,
+      };
+    }
+  }
+
+  // No primary amount found, let OpenAI decide
   const prompt = EXTRACTION_PROMPT
     .replace("{subject}", email.subject)
     .replace("{from}", email.from)
