@@ -69,6 +69,40 @@ export async function searchInvoiceEmails(
   return response.data.messages || [];
 }
 
+// Recursively extract text content from email parts
+function extractTextFromParts(parts: any[], preferPlainText: boolean = true): string {
+  let plainText = "";
+  let htmlText = "";
+  
+  for (const part of parts) {
+    // If this part has nested parts, recurse
+    if (part.parts && part.parts.length > 0) {
+      const nested = extractTextFromParts(part.parts, preferPlainText);
+      if (nested) {
+        if (part.mimeType?.includes("plain")) {
+          plainText += nested;
+        } else {
+          htmlText += nested;
+        }
+      }
+    }
+    
+    // Extract content from this part
+    if (part.body?.data) {
+      const decoded = Buffer.from(part.body.data, "base64").toString("utf-8");
+      if (part.mimeType === "text/plain") {
+        plainText += decoded + "\n";
+      } else if (part.mimeType === "text/html") {
+        // Strip HTML tags
+        const stripped = decoded.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        htmlText += stripped + "\n";
+      }
+    }
+  }
+  
+  return preferPlainText && plainText ? plainText : htmlText || plainText;
+}
+
 export async function getEmailContent(userId: string, messageId: string) {
   const gmail = await getGmailClient(userId);
 
@@ -91,32 +125,30 @@ export async function getEmailContent(userId: string, messageId: string) {
     if (header.name?.toLowerCase() === "date") date = header.value || "";
   }
 
-  // Get body content
+  // Get body content - recursively extract from nested parts
   const parts = message.data.payload?.parts || [];
-  
-  // Try to get plain text first
-  for (const part of parts) {
-    if (part.mimeType === "text/plain" && part.body?.data) {
-      textContent = Buffer.from(part.body.data, "base64").toString("utf-8");
-      break;
-    }
+  if (parts.length > 0) {
+    textContent = extractTextFromParts(parts);
   }
 
-  // Fall back to HTML if no plain text
-  if (!textContent) {
-    for (const part of parts) {
-      if (part.mimeType === "text/html" && part.body?.data) {
-        const html = Buffer.from(part.body.data, "base64").toString("utf-8");
-        textContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-        break;
-      }
-    }
-  }
-
-  // Check payload body directly if no parts
+  // Check payload body directly if no parts found content
   if (!textContent && message.data.payload?.body?.data) {
-    textContent = Buffer.from(message.data.payload.body.data, "base64").toString("utf-8");
+    const decoded = Buffer.from(message.data.payload.body.data, "base64").toString("utf-8");
+    if (message.data.payload.mimeType === "text/html") {
+      textContent = decoded.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    } else {
+      textContent = decoded;
+    }
   }
+
+  // Last resort: use the snippet from Gmail
+  if (!textContent && message.data.snippet) {
+    textContent = message.data.snippet;
+    console.log(`Using snippet for "${subject}" - no body content extracted`);
+  }
+
+  // Log content length for debugging
+  console.log(`Email "${subject.slice(0, 50)}..." content length: ${textContent.length} chars`);
 
   return {
     id: messageId,
