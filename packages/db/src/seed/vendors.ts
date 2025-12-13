@@ -335,63 +335,63 @@ export const vendorSeedData: NewVendor[] = [
     emailPatterns: ["@workos.com"],
   },
 
-  // Payments
+  // Payments (using Auth/Infra category)
   {
     name: "Stripe",
     slug: "stripe",
     logoUrl: "https://stripe.com/favicon.ico",
-    category: "Payments",
+    category: "Auth/Infra",
     emailPatterns: ["@stripe.com"],
   },
   {
     name: "Paddle",
     slug: "paddle",
     logoUrl: "https://paddle.com/favicon.ico",
-    category: "Payments",
+    category: "Auth/Infra",
     emailPatterns: ["@paddle.com"],
   },
   {
     name: "Lemon Squeezy",
     slug: "lemonsqueezy",
     logoUrl: "https://lemonsqueezy.com/favicon.ico",
-    category: "Payments",
+    category: "Auth/Infra",
     emailPatterns: ["@lemonsqueezy.com"],
   },
 
-  // Communications
+  // Communication
   {
     name: "Twilio",
     slug: "twilio",
     logoUrl: "https://www.twilio.com/favicon.ico",
-    category: "Communications",
+    category: "Communication",
     emailPatterns: ["@twilio.com"],
   },
   {
     name: "SendGrid",
     slug: "sendgrid",
     logoUrl: "https://sendgrid.com/favicon.ico",
-    category: "Communications",
+    category: "Communication",
     emailPatterns: ["@sendgrid.com"],
   },
   {
     name: "Resend",
     slug: "resend",
     logoUrl: "https://resend.com/favicon.ico",
-    category: "Communications",
+    category: "Communication",
     emailPatterns: ["@resend.com"],
   },
   {
     name: "Postmark",
     slug: "postmark",
     logoUrl: "https://postmarkapp.com/favicon.ico",
-    category: "Communications",
+    category: "Communication",
     emailPatterns: ["@postmarkapp.com"],
   },
   {
     name: "Intercom",
     slug: "intercom",
     logoUrl: "https://intercom.com/favicon.ico",
-    category: "Communications",
+    category: "Communication",
     emailPatterns: ["@intercom.com", "@intercom.io"],
   },
 
@@ -597,26 +597,26 @@ export const vendorSeedData: NewVendor[] = [
     emailPatterns: ["@hotjar.com"],
   },
 
-  // Domains
+  // Domains (using Other category)
   {
     name: "Namecheap",
     slug: "namecheap",
     logoUrl: "https://namecheap.com/favicon.ico",
-    category: "Domains",
+    category: "Other",
     emailPatterns: ["@namecheap.com"],
   },
   {
     name: "GoDaddy",
     slug: "godaddy",
     logoUrl: "https://godaddy.com/favicon.ico",
-    category: "Domains",
+    category: "Other",
     emailPatterns: ["@godaddy.com"],
   },
   {
     name: "Porkbun",
     slug: "porkbun",
     logoUrl: "https://porkbun.com/favicon.ico",
-    category: "Domains",
+    category: "Other",
     emailPatterns: ["@porkbun.com"],
   },
 ];

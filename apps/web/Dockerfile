@@ -20,6 +20,10 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build the db package (for seed script)
+RUN npm run build --workspace=@prism/db
+
+# Build the web app
 RUN npm run build --workspace=@prism/web
 
 # Production image
