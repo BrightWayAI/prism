@@ -5,7 +5,7 @@
     "dockerfilePath": "apps/web/Dockerfile"
   },
   "deploy": {
-    "startCommand": "cd packages/db && npx drizzle-kit push && cd ../.. && node apps/web/server.js",
+    "startCommand": "node apps/web/server.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
