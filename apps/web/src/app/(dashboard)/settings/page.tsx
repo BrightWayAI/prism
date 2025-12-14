@@ -2,7 +2,7 @@ import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PrismLogo } from "@/components/ui/prism-logo";
+import { ServerSidebar } from "@/components/layout/server-sidebar";
 import { db } from "@prism/db";
 import { users } from "@prism/db/schema";
 import { eq } from "drizzle-orm";
@@ -23,21 +23,9 @@ export default async function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <h1 className="text-xl font-bold">
-            <PrismLogo size="md" />
-          </h1>
-          <nav className="flex items-center gap-4">
-            <a href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-              Dashboard
-            </a>
-            <span className="text-sm font-medium">Settings</span>
-          </nav>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl space-y-6 p-6">
+      <ServerSidebar currentPath="/settings" />
+      <main className="pl-64">
+        <div className="mx-auto max-w-2xl space-y-6 p-6">
         <div>
           <h2 className="text-2xl font-semibold">Settings</h2>
           <p className="text-muted-foreground">Manage your account and preferences</p>
@@ -121,6 +109,7 @@ export default async function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );

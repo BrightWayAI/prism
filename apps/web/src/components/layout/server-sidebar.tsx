@@ -1,0 +1,76 @@
+import Link from "next/link";
+import { PrismLogo } from "@/components/ui/prism-logo";
+import { 
+  LayoutDashboard, 
+  Receipt, 
+  Bell, 
+  Calendar,
+  Download,
+  Settings,
+  LogOut
+} from "lucide-react";
+
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/invoices", label: "Invoices", icon: Receipt },
+  { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/renewals", label: "Renewals", icon: Calendar },
+  { href: "/export", label: "Export", icon: Download },
+];
+
+interface ServerSidebarProps {
+  currentPath: string;
+}
+
+export function ServerSidebar({ currentPath }: ServerSidebarProps) {
+  return (
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
+      <div className="flex h-full flex-col">
+        {/* Logo */}
+        <div className="flex h-16 items-center border-b border-border px-6">
+          <Link href="/dashboard">
+            <PrismLogo size="lg" />
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 p-4">
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentPath === item.href || 
+              (item.href !== "/dashboard" && currentPath.startsWith(item.href));
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom section */}
+        <div className="border-t border-border p-4 space-y-1">
+          <Link
+            href="/settings"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              currentPath === "/settings"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Settings className="h-5 w-5" />
+            Settings
+          </Link>
+        </div>
+      </div>
+    </aside>
+  );
+}

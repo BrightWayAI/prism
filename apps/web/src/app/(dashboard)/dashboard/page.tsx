@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AppLayout } from "@/components/layout/app-layout";
 import { SpendSummary } from "@/components/dashboard/spend-summary";
 import { ServiceCard } from "@/components/dashboard/service-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, RefreshCw, Calendar, ChevronDown } from "lucide-react";
-import { PrismLogo } from "@/components/ui/prism-logo";
 
 const DATE_RANGES = [
   { label: "This month", value: "current" },
@@ -146,37 +146,28 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-destructive-foreground">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
-      </div>
+      <AppLayout>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+          <p className="text-destructive-foreground">{error}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <h1 className="text-xl font-bold">
-            <PrismLogo size="md" />
-          </h1>
-          <div className="flex items-center gap-4">
-            <a href="/settings" className="text-sm text-muted-foreground hover:text-foreground">
-              Settings
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl space-y-8 p-6">
+    <AppLayout>
+      <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold">Dashboard</h2>
@@ -285,7 +276,7 @@ export default function DashboardPage() {
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
