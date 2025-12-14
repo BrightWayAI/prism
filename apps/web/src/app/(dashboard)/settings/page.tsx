@@ -2,6 +2,10 @@ import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { db } from "@prism/db";
+import { users } from "@prism/db/schema";
+import { eq } from "drizzle-orm";
+import { SubscriptionCard } from "@/components/settings/subscription-card";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -9,6 +13,12 @@ export default async function SettingsPage() {
   if (!session?.user) {
     redirect("/login");
   }
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, session.user.id!))
+    .limit(1);
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,6 +41,12 @@ export default async function SettingsPage() {
           <h2 className="text-2xl font-semibold">Settings</h2>
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
+
+        <SubscriptionCard 
+          status={user?.subscriptionStatus || null}
+          trialEndsAt={user?.trialEndsAt || null}
+          currentPeriodEnd={user?.currentPeriodEnd || null}
+        />
 
         <Card>
           <CardHeader>

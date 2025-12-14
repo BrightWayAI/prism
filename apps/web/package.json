@@ -10,10 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.7.4",
     "@prism/db": "*",
     "@prism/shared": "*",
-    "openai": "^4.73.0",
-    "@auth/drizzle-adapter": "^1.7.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.38.2",
@@ -21,10 +20,12 @@
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "next-auth": "^5.0.0-beta.25",
+    "openai": "^4.73.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.14.1",
     "resend": "^4.0.1",
+    "stripe": "^20.0.0",
     "tailwind-merge": "^2.6.0",
     "zod": "^3.24.1"
   },

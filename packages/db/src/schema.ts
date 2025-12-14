@@ -44,6 +44,14 @@ export const vendorCategoryEnum = pgEnum("vendor_category", [
   "Other",
 ]);
 
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "trialing",
+  "active",
+  "canceled",
+  "past_due",
+  "unpaid",
+]);
+
 // NextAuth.js required tables
 export const users = pgTable("user", {
   id: text("id")
@@ -54,6 +62,12 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   alertPreferences: jsonb("alert_preferences").default({}),
+  // Stripe fields
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: subscriptionStatusEnum("subscription_status"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodEnd: timestamp("current_period_end"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastSyncAt: timestamp("last_sync_at"),
 });
