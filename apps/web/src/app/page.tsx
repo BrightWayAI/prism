@@ -117,8 +117,8 @@ function ScatteredLogos({ isGathered }: { isGathered: boolean }) {
               transform: isGathered
                 ? `translate(calc(-50% + ${gatheredX}px), calc(-50% + ${gatheredY}px)) rotate(0deg) scale(1)`
                 : `translate(calc(-50% + ${pos.x * 3}px), calc(-50% + ${pos.y * 3}px)) rotate(${pos.rotation}deg) scale(0.9)`,
-              transitionDuration: `${800 + pos.delay * 400}ms`,
-              transitionDelay: isGathered ? `${pos.delay * 300}ms` : "0ms",
+              transitionDuration: `${1500 + pos.delay * 800}ms`,
+              transitionDelay: isGathered ? `${pos.delay * 500}ms` : "0ms",
             }}
           >
             <div
@@ -214,12 +214,25 @@ export default function HomePage() {
   const [isGathered, setIsGathered] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
+  const logosRef = useRef<HTMLDivElement>(null);
 
-  // Trigger gather animation when hero is visible (slower for better effect)
+  // Trigger gather animation on scroll when logos section is visible
   useEffect(() => {
-    const timer = setTimeout(() => setIsGathered(true), 2500);
-    return () => clearTimeout(timer);
-  }, []);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isGathered) {
+          setIsGathered(true);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (logosRef.current) {
+      observer.observe(logosRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isGathered]);
 
   // Auto-rotate features
   useEffect(() => {
@@ -272,7 +285,7 @@ export default function HomePage() {
         </div>
 
         {/* Animated scattered logos */}
-        <div className="mt-12">
+        <div ref={logosRef} className="mt-12">
           <p className="mb-4 text-sm font-medium text-muted-foreground">
             {isGathered ? "Automatically detects receipts from 80+ dev tools" : "Your receipts are scattered everywhere..."}
           </p>
