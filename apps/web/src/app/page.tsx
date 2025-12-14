@@ -1,18 +1,25 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState, useRef } from "react";
 
 const VENDOR_LOGOS = [
-  { name: "AWS", color: "#FF9900" },
-  { name: "Vercel", color: "#000000" },
-  { name: "OpenAI", color: "#10A37F" },
-  { name: "Stripe", color: "#635BFF" },
-  { name: "GitHub", color: "#181717" },
-  { name: "Slack", color: "#4A154B" },
-  { name: "Figma", color: "#F24E1E" },
-  { name: "Railway", color: "#0B0D0E" },
-  { name: "Anthropic", color: "#D4A574" },
-  { name: "Supabase", color: "#3ECF8E" },
-  { name: "Linear", color: "#5E6AD2" },
-  { name: "Notion", color: "#000000" },
+  { name: "AWS", color: "#FF9900", icon: "☁️" },
+  { name: "Vercel", color: "#000000", icon: "▲" },
+  { name: "OpenAI", color: "#10A37F", icon: "🤖" },
+  { name: "Stripe", color: "#635BFF", icon: "💳" },
+  { name: "GitHub", color: "#181717", icon: "🐙" },
+  { name: "Slack", color: "#4A154B", icon: "💬" },
+  { name: "Figma", color: "#F24E1E", icon: "🎨" },
+  { name: "Railway", color: "#0B0D0E", icon: "🚂" },
+  { name: "Anthropic", color: "#D4A574", icon: "🧠" },
+  { name: "Supabase", color: "#3ECF8E", icon: "⚡" },
+  { name: "Linear", color: "#5E6AD2", icon: "📋" },
+  { name: "Notion", color: "#000000", icon: "📝" },
+  { name: "Datadog", color: "#632CA6", icon: "🐕" },
+  { name: "MongoDB", color: "#47A248", icon: "🍃" },
+  { name: "Twilio", color: "#F22F46", icon: "📱" },
+  { name: "Sentry", color: "#362D59", icon: "🔍" },
 ];
 
 const FEATURES = [
@@ -49,7 +56,145 @@ const SOLUTIONS = [
   "Stay on top of renewals",
 ];
 
+// Floating invoice animation component
+function ScatteredLogos({ isGathered }: { isGathered: boolean }) {
+  const positions = useRef(
+    VENDOR_LOGOS.map(() => ({
+      x: Math.random() * 100 - 50,
+      y: Math.random() * 100 - 50,
+      rotation: Math.random() * 40 - 20,
+      delay: Math.random() * 0.5,
+    }))
+  );
+
+  return (
+    <div className="relative mx-auto h-[400px] w-full max-w-2xl overflow-hidden">
+      {/* Center target - Prism logo */}
+      <div 
+        className={`absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-primary text-3xl font-bold text-primary-foreground shadow-2xl transition-all duration-1000 ${
+          isGathered ? "scale-100 opacity-100" : "scale-50 opacity-0"
+        }`}
+      >
+        P
+      </div>
+      
+      {/* Scattered vendor logos */}
+      {VENDOR_LOGOS.map((vendor, i) => {
+        const pos = positions.current[i];
+        const angle = (i / VENDOR_LOGOS.length) * 2 * Math.PI;
+        const gatheredX = Math.cos(angle) * 120;
+        const gatheredY = Math.sin(angle) * 120;
+        
+        return (
+          <div
+            key={vendor.name}
+            className="absolute left-1/2 top-1/2 transition-all ease-out"
+            style={{
+              transform: isGathered
+                ? `translate(calc(-50% + ${gatheredX}px), calc(-50% + ${gatheredY}px)) rotate(0deg) scale(1)`
+                : `translate(calc(-50% + ${pos.x * 3}px), calc(-50% + ${pos.y * 3}px)) rotate(${pos.rotation}deg) scale(0.9)`,
+              transitionDuration: `${800 + pos.delay * 400}ms`,
+              transitionDelay: isGathered ? `${pos.delay * 300}ms` : "0ms",
+            }}
+          >
+            <div
+              className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 bg-card text-2xl shadow-lg transition-all duration-500 ${
+                isGathered ? "border-primary/50 shadow-primary/20" : "border-border"
+              }`}
+              style={{
+                boxShadow: isGathered ? `0 0 20px ${vendor.color}40` : undefined,
+              }}
+            >
+              {vendor.icon}
+            </div>
+          </div>
+        );
+      })}
+      
+      {/* Connection lines when gathered */}
+      {isGathered && (
+        <svg className="absolute inset-0 h-full w-full" style={{ zIndex: 5 }}>
+          {VENDOR_LOGOS.map((_, i) => {
+            const angle = (i / VENDOR_LOGOS.length) * 2 * Math.PI;
+            const x = Math.cos(angle) * 120 + 50 + "%";
+            const y = Math.sin(angle) * 120 + 50 + "%";
+            return (
+              <line
+                key={i}
+                x1="50%"
+                y1="50%"
+                x2={x}
+                y2={y}
+                stroke="currentColor"
+                strokeWidth="1"
+                className="text-primary/20"
+                style={{
+                  strokeDasharray: 150,
+                  strokeDashoffset: 150,
+                  animation: `drawLine 0.5s ease-out ${0.5 + i * 0.05}s forwards`,
+                }}
+              />
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// Animated counter component
+function AnimatedCounter({ target, duration = 2000 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          let start = 0;
+          const increment = target / (duration / 16);
+          const timer = setInterval(() => {
+            start += increment;
+            if (start >= target) {
+              setCount(target);
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(start));
+            }
+          }, 16);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target, duration, hasAnimated]);
+
+  return <span ref={ref}>{count.toLocaleString()}</span>;
+}
+
 export default function HomePage() {
+  const [isGathered, setIsGathered] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  // Trigger gather animation when hero is visible
+  useEffect(() => {
+    const timer = setTimeout(() => setIsGathered(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-rotate features
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveFeature((prev) => (prev + 1) % FEATURES.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -66,44 +211,67 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+      <section ref={heroRef} className="mx-auto max-w-6xl px-6 py-16 text-center">
+        <h1 className="animate-fade-in text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
           For every scattered
           <br />
-          <span className="text-primary">SaaS invoice</span>
+          <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            SaaS invoice
+          </span>
         </h1>
         
-        <div className="mx-auto mt-8 max-w-xl space-y-2 text-xl text-muted-foreground">
-          <p>• See all your dev tool spend in one dashboard</p>
-          <p>• Auto-detect invoices from Gmail</p>
-          <p>• Never lose track of subscriptions again</p>
-        </div>
+        <p className="mx-auto mt-6 max-w-xl text-xl text-muted-foreground animate-fade-in-delay">
+          Stop digging through emails. Prism automatically finds and organizes 
+          your dev tool invoices in one dashboard.
+        </p>
 
-        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+        <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center animate-fade-in-delay-2">
           <Link
             href="/login"
-            className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-8 text-lg font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="group inline-flex h-12 items-center justify-center rounded-lg bg-primary px-8 text-lg font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-lg hover:shadow-primary/25"
           >
             Get Started Free
+            <span className="ml-2 transition-transform group-hover:translate-x-1">→</span>
           </Link>
           <p className="text-sm text-muted-foreground">No credit card required</p>
         </div>
 
-        {/* Social proof */}
-        <p className="mt-16 text-sm font-medium text-muted-foreground">
-          TRACKS INVOICES FROM 80+ SERVICES
-        </p>
-        
-        {/* Vendor logo ticker */}
-        <div className="mt-6 flex flex-wrap justify-center gap-6">
-          {VENDOR_LOGOS.map((vendor) => (
-            <div
-              key={vendor.name}
-              className="flex h-10 w-20 items-center justify-center rounded-lg bg-secondary/50 text-xs font-medium text-muted-foreground"
-            >
-              {vendor.name}
-            </div>
-          ))}
+        {/* Animated scattered logos */}
+        <div className="mt-12">
+          <p className="mb-4 text-sm font-medium text-muted-foreground">
+            {isGathered ? "All your invoices, unified" : "Your invoices are everywhere..."}
+          </p>
+          <ScatteredLogos isGathered={isGathered} />
+          <button
+            onClick={() => setIsGathered(!isGathered)}
+            className="mt-4 text-sm text-primary hover:underline"
+          >
+            {isGathered ? "Scatter again" : "Bring them together"}
+          </button>
+        </div>
+      </section>
+
+      {/* Stats bar */}
+      <section className="border-y border-border/40 bg-secondary/30 py-8">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-8 px-6 sm:gap-16">
+          <div className="text-center">
+            <p className="text-3xl font-bold text-primary">
+              <AnimatedCounter target={80} />+
+            </p>
+            <p className="text-sm text-muted-foreground">Services tracked</p>
+          </div>
+          <div className="text-center">
+            <p className="text-3xl font-bold text-primary">
+              $<AnimatedCounter target={2400000} />
+            </p>
+            <p className="text-sm text-muted-foreground">Spend analyzed</p>
+          </div>
+          <div className="text-center">
+            <p className="text-3xl font-bold text-primary">
+              <AnimatedCounter target={15000} />+
+            </p>
+            <p className="text-sm text-muted-foreground">Invoices organized</p>
+          </div>
         </div>
       </section>
 
@@ -158,17 +326,123 @@ export default function HomePage() {
             Connect once, track forever. Prism does the heavy lifting.
           </p>
 
-          <div className="mt-16 grid gap-8 sm:grid-cols-3">
-            {FEATURES.map((feature, i) => (
-              <div key={feature.title} className="text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary text-3xl">
-                  {feature.icon}
+          {/* Interactive steps */}
+          <div className="mt-16 grid gap-8 lg:grid-cols-2">
+            {/* Step selector */}
+            <div className="space-y-4">
+              {FEATURES.map((feature, i) => (
+                <button
+                  key={feature.title}
+                  onClick={() => setActiveFeature(i)}
+                  className={`w-full rounded-xl border-2 p-6 text-left transition-all ${
+                    activeFeature === i
+                      ? "border-primary bg-primary/5 shadow-lg"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl transition-colors ${
+                      activeFeature === i ? "bg-primary text-primary-foreground" : "bg-secondary"
+                    }`}>
+                      {feature.icon}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium ${activeFeature === i ? "text-primary" : "text-muted-foreground"}`}>
+                        Step {i + 1}
+                      </p>
+                      <h3 className="text-lg font-semibold">{feature.title}</h3>
+                      <p className={`mt-1 text-sm transition-all ${
+                        activeFeature === i ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  {activeFeature === i && (
+                    <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-primary/20">
+                      <div 
+                        className="h-full bg-primary"
+                        style={{
+                          animation: "progress 3s linear forwards",
+                        }}
+                      />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            
+            {/* Visual preview */}
+            <div className="relative hidden lg:block">
+              <div className="sticky top-24 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+                {/* Step 1: Gmail connection */}
+                <div className={`p-8 transition-all duration-500 ${activeFeature === 0 ? "opacity-100" : "absolute inset-0 opacity-0"}`}>
+                  <div className="flex items-center gap-4 rounded-xl border border-border bg-secondary/50 p-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-500/10 text-2xl">
+                      📧
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Connect with Google</p>
+                      <p className="text-sm text-muted-foreground">Read-only access to billing emails</p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full border-2 border-primary bg-primary/20 flex items-center justify-center text-primary text-sm">✓</div>
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p className="flex items-center gap-2"><span className="text-green-500">✓</span> Only reads billing emails</p>
+                    <p className="flex items-center gap-2"><span className="text-green-500">✓</span> Can&apos;t send or delete</p>
+                    <p className="flex items-center gap-2"><span className="text-green-500">✓</span> Revoke anytime</p>
+                  </div>
                 </div>
-                <p className="mt-2 text-sm font-medium text-primary">Step {i + 1}</p>
-                <h3 className="mt-2 text-xl font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-muted-foreground">{feature.description}</p>
+                
+                {/* Step 2: Service detection */}
+                <div className={`p-8 transition-all duration-500 ${activeFeature === 1 ? "opacity-100" : "absolute inset-0 opacity-0"}`}>
+                  <p className="text-sm text-muted-foreground mb-4">Scanning inbox...</p>
+                  <div className="space-y-3">
+                    {["AWS", "Vercel", "OpenAI", "GitHub", "Slack"].map((service, i) => (
+                      <div 
+                        key={service}
+                        className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-3 animate-slide-in"
+                        style={{ animationDelay: `${i * 150}ms` }}
+                      >
+                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-sm font-medium">
+                          {service[0]}
+                        </div>
+                        <span className="font-medium">{service}</span>
+                        <span className="ml-auto text-sm text-green-500">Found</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Step 3: Dashboard */}
+                <div className={`p-8 transition-all duration-500 ${activeFeature === 2 ? "opacity-100" : "absolute inset-0 opacity-0"}`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <p className="text-sm text-muted-foreground">This month</p>
+                      <p className="text-3xl font-bold">$2,847</p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p className="text-green-500">↓ 12%</p>
+                      <p className="text-muted-foreground">vs last month</p>
+                    </div>
+                  </div>
+                  <div className="h-24 flex items-end gap-1">
+                    {[40, 65, 45, 80, 55, 70, 50, 90, 60, 75, 85, 65].map((h, i) => (
+                      <div 
+                        key={i} 
+                        className="flex-1 rounded-t bg-primary/60 transition-all hover:bg-primary"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                    <span>Jan</span>
+                    <span>Dec</span>
+                  </div>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
