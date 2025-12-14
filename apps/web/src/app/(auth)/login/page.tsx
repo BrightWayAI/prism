@@ -1,4 +1,5 @@
 import { signIn } from "@/lib/auth";
+import { PrismLogo } from "@/components/ui/prism-logo";
 
 export default function LoginPage() {
   return (
@@ -6,7 +7,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight">
-            <span className="text-primary">Prism</span>
+            <PrismLogo size="lg" />
           </h1>
           <p className="mt-2 text-muted-foreground">
             Sign in to track your SaaS spending
@@ -16,7 +17,7 @@ export default function LoginPage() {
         <form
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: "/onboarding" });
+            await signIn("google", { redirectTo: "/dashboard" });
           }}
         >
           <button

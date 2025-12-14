@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Loader2, ArrowLeft, ExternalLink } from "lucide-react";
+import { PrismLogo } from "@/components/ui/prism-logo";
 
 interface Invoice {
   id: string;
@@ -84,7 +85,7 @@ export default function InvoicesPage() {
       <header className="border-b border-border">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <h1 className="text-xl font-bold">
-            <span className="text-primary">Prism</span>
+            <PrismLogo size="md" />
           </h1>
           <div className="flex items-center gap-4">
             <a href="/settings" className="text-sm text-muted-foreground hover:text-foreground">

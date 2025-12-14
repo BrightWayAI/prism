@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
+import { PrismLogo } from "@/components/ui/prism-logo";
 
 const VENDOR_LOGOS = [
   { name: "AWS", color: "#FF9900", logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg" },
@@ -214,9 +215,9 @@ export default function HomePage() {
   const [activeFeature, setActiveFeature] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Trigger gather animation when hero is visible
+  // Trigger gather animation when hero is visible (slower for better effect)
   useEffect(() => {
-    const timer = setTimeout(() => setIsGathered(true), 800);
+    const timer = setTimeout(() => setIsGathered(true), 2500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -233,7 +234,7 @@ export default function HomePage() {
       {/* Nav */}
       <nav className="border-b border-border/40">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <span className="text-xl font-bold text-primary">Prism</span>
+          <PrismLogo size="md" />
           <Link
             href="/login"
             className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"

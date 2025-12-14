@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, Clock, Zap, Calendar } from "lucide-react";
+import { PrismLogo } from "@/components/ui/prism-logo";
 
 interface DetectedService {
   id: string;
@@ -110,7 +111,7 @@ export default function OnboardingPage() {
       <div className="flex min-h-screen flex-col items-center justify-center p-8">
         <div className="w-full max-w-xl space-y-8">
           <div className="text-center">
-            <h1 className="text-3xl font-bold">Welcome to Prism</h1>
+            <h1 className="text-3xl font-bold">Welcome to <PrismLogo size="lg" /></h1>
             <p className="mt-2 text-muted-foreground">
               Let's scan your inbox for SaaS invoices and receipts
             </p>

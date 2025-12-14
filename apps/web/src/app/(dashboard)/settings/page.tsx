@@ -2,6 +2,7 @@ import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PrismLogo } from "@/components/ui/prism-logo";
 import { db } from "@prism/db";
 import { users } from "@prism/db/schema";
 import { eq } from "drizzle-orm";
@@ -25,7 +26,7 @@ export default async function SettingsPage() {
       <header className="border-b border-border">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <h1 className="text-xl font-bold">
-            <span className="text-primary">Prism</span>
+            <PrismLogo size="md" />
           </h1>
           <nav className="flex items-center gap-4">
             <a href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
