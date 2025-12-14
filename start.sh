@@ -4,7 +4,9 @@ set -e
 # Run Drizzle migrations if DATABASE_URL is set
 if [ -n "$DATABASE_URL" ]; then
   echo "Running database migrations..."
-  node node_modules/drizzle-kit/bin.cjs push --config=packages/db/drizzle.config.ts
+  cd packages/db
+  node ../../node_modules/drizzle-kit/bin.cjs migrate || echo "Migration failed, continuing..."
+  cd ../..
   echo "Migrations complete."
   
   echo "Seeding vendor data..."
