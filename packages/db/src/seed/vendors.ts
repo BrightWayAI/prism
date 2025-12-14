@@ -7,7 +7,8 @@ export const vendorSeedData: NewVendor[] = [
     slug: "aws",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg",
     category: "Cloud",
-    emailPatterns: ["@amazon.com", "@aws.amazon.com", "aws-billing@amazon.com", "aws-receivables-support@email.amazon.com"],
+    // Avoid matching consumer Amazon receipts — keep this billing-specific.
+    emailPatterns: ["@aws.amazon.com", "aws-billing@amazon.com", "aws-receivables-support@email.amazon.com"],
   },
   {
     name: "Google Cloud",
@@ -28,7 +29,8 @@ export const vendorSeedData: NewVendor[] = [
     slug: "azure",
     logoUrl: "https://azure.microsoft.com/favicon.ico",
     category: "Cloud",
-    emailPatterns: ["@microsoft.com", "@azure.com", "azure-noreply@microsoft.com"],
+    // Avoid matching consumer Microsoft receipts — keep this Azure-specific.
+    emailPatterns: ["@azure.com", "azure-noreply@microsoft.com"],
   },
   {
     name: "Vercel",

@@ -121,6 +121,10 @@ function isLikelyInvoiceOrReceipt(subject: string, content: string): boolean {
   const invoiceKeywords = [
     "receipt", 
     "invoice", 
+    "tax invoice",
+    "billing statement",
+    "statement",
+    "bill",
     "payment received",
     "payment confirmed",
     "your payment of",
@@ -151,7 +155,6 @@ function isLikelyInvoiceOrReceipt(subject: string, content: string): boolean {
     "welcome to",
     "getting started",
     "newsletter",
-    "unsubscribe",
   ];
   
   const hasRejectKeyword = rejectKeywords.some(kw => text.includes(kw));

@@ -15,40 +15,43 @@ export async function GET(request: Request) {
   const range = searchParams.get("range") || "current";
 
   try {
-    // Get date ranges based on selection
+    // Get date ranges based on selection (use UTC boundaries to avoid timezone shifting invoices into the wrong month)
     const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+
     let startDate: Date;
-    let endDate: Date = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // End of current month
+    let endDate: Date = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)); // End of current month (UTC)
     
     switch (range) {
       case "current":
         // Current month only
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = new Date(Date.UTC(year, month, 1));
         break;
       case "last":
         // Last month only
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        startDate = new Date(Date.UTC(year, month - 1, 1));
+        endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
         break;
       case "3m":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        startDate = new Date(Date.UTC(year, month - 2, 1));
         break;
       case "6m":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        startDate = new Date(Date.UTC(year, month - 5, 1));
         break;
       case "12m":
-        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        startDate = new Date(Date.UTC(year, month - 11, 1));
         break;
       case "all":
       default:
-        startDate = new Date(2020, 0, 1);
+        startDate = new Date(Date.UTC(2020, 0, 1));
         break;
     }
     
     // For comparison (previous period)
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const currentMonthStart = new Date(Date.UTC(year, month, 1));
+    const previousMonthStart = new Date(Date.UTC(year, month - 1, 1));
+    const previousMonthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
     // Get all invoices for the user
     const allInvoices = await db
@@ -97,7 +100,7 @@ export async function GET(request: Request) {
       const vendorKey = invoice.vendorId || "unknown";
       const amount = parseFloat(invoice.amount || "0");
       const invoiceDate = new Date(invoice.invoiceDate);
-      const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
+      const monthKey = `${invoiceDate.getUTCFullYear()}-${invoiceDate.getUTCMonth()}`;
 
       // Initialize vendor if not exists
       if (!vendorSpend[vendorKey]) {
@@ -141,17 +144,19 @@ export async function GET(request: Request) {
     for (const vendorKey of Object.keys(vendorSpend)) {
       const history: number[] = [];
       for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+        const date = new Date(Date.UTC(year, month - i, 1));
+        const monthKey = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
         history.push(monthlySpend[vendorKey]?.[monthKey] || 0);
       }
       vendorSpend[vendorKey].spendHistory = history;
     }
 
-    // Calculate totals
-    const services = Object.values(vendorSpend).filter((v) => v.vendorId !== "unknown");
-    const totalSpendInRange = Object.values(vendorSpend).reduce((sum, v) => sum + v.totalSpend, 0);
-    const totalPreviousSpend = Object.values(vendorSpend).reduce((sum, v) => sum + v.previousMonthSpend, 0);
+    // Calculate totals (only include curated/seeds; exclude "Other" and unknown)
+    const services = Object.values(vendorSpend).filter(
+      (v) => v.vendorId !== "unknown" && v.vendorCategory !== "Other"
+    );
+    const totalSpendInRange = services.reduce((sum, v) => sum + v.totalSpend, 0);
+    const totalPreviousSpend = services.reduce((sum, v) => sum + v.previousMonthSpend, 0);
 
     // Sort by total spend in the selected range
     services.sort((a, b) => b.totalSpend - a.totalSpend);

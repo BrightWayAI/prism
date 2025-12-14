@@ -5,77 +5,16 @@ import { parseInvoiceEmail } from "@/lib/parser";
 import { db, invoices, vendors, userVendors } from "@prism/db";
 import { eq, and, ilike } from "drizzle-orm";
 
-const CONSUMER_EMAIL_DOMAINS = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "outlook.com",
-  "hotmail.com",
-  "live.com",
-  "yahoo.com",
-  "icloud.com",
-]);
-
-function slugifyVendorName(input: string) {
-  return input
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
-}
-
-function extractEmailDomain(fromHeader: string): string | null {
-  const angleMatch = fromHeader.match(/<([^>]+)>/);
-  const raw = angleMatch ? angleMatch[1] : fromHeader;
-  const emailMatch = raw.match(/[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/i);
-  if (!emailMatch) return null;
-  return emailMatch[1].toLowerCase();
-}
-
-async function getOrCreateVendorByName(
-  vendorName: string,
-  emailFrom: string
-): Promise<typeof vendors.$inferSelect | null> {
-  const trimmed = vendorName.trim();
-  if (!trimmed) return null;
-
-  const existingByName = await db.query.vendors.findFirst({
-    where: ilike(vendors.name, trimmed),
-  });
-  if (existingByName) return existingByName;
-
-  const domain = extractEmailDomain(emailFrom);
-  const emailPatterns =
-    domain && !CONSUMER_EMAIL_DOMAINS.has(domain) ? [`@${domain}`] : [];
-
-  const baseSlug = slugifyVendorName(trimmed) || "vendor";
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const slug =
-      attempt === 0
-        ? baseSlug
-        : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
-
-    const [created] = await db
-      .insert(vendors)
-      .values({
-        name: trimmed,
-        slug,
-        category: "Other",
-        emailPatterns,
-      })
-      .onConflictDoNothing()
-      .returning();
-
-    if (created) return created;
-
-    const existingBySlug = await db.query.vendors.findFirst({
-      where: eq(vendors.slug, slug),
-    });
-    if (existingBySlug) return existingBySlug;
+function parseInvoiceDateToUtc(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Parser prompt expects YYYY-MM-DD. Store at noon UTC to avoid timezone shifting across days.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(`${dateStr}T12:00:00.000Z`);
+    return isNaN(d.getTime()) ? null : d;
   }
 
-  return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 export async function POST(request: Request) {
@@ -193,19 +132,30 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Skip if no date
-      if (!parsed.invoiceDate) {
-        console.log("Skipping - no date:", parsed.vendorName);
-        results.failed++;
-        continue;
+      const emailHeaderDate = new Date(email.date);
+
+      // Parse invoice date as a stable UTC date (avoid timezone shift issues that hide "this month" spend)
+      let invoiceDate = parseInvoiceDateToUtc(parsed.invoiceDate);
+
+      // Fallback to email header date if parsed date missing/invalid
+      if (!invoiceDate || isNaN(invoiceDate.getTime())) {
+        if (!isNaN(emailHeaderDate.getTime())) {
+          invoiceDate = emailHeaderDate;
+        } else {
+          console.log("Skipping - invalid invoice and email date:", parsed.vendorName, parsed.invoiceDate, email.date);
+          results.failed++;
+          continue;
+        }
       }
 
-      // Validate date
-      const invoiceDate = new Date(parsed.invoiceDate);
-      if (isNaN(invoiceDate.getTime())) {
-        console.log("Invalid date:", parsed.invoiceDate);
-        results.failed++;
-        continue;
+      // If invoiceDate is wildly different from the email send date, prefer email date (common LLM failure)
+      if (!isNaN(emailHeaderDate.getTime())) {
+        const diffDays = Math.abs(
+          (invoiceDate.getTime() - emailHeaderDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diffDays > 45) {
+          invoiceDate = emailHeaderDate;
+        }
       }
 
       // Match vendor by multiple strategies
@@ -344,16 +294,16 @@ export async function POST(request: Request) {
         }
       }
 
-      // Strategy 5: If we still couldn't match, create a vendor on-the-fly (so spend doesn't disappear)
-      if (!matchedVendor && parsed.vendorName) {
-        const created = await getOrCreateVendorByName(parsed.vendorName, email.from);
-        if (created) {
-          matchedVendor = created;
-          console.log(`Created vendor on the fly: ${created.name} (${created.slug})`);
-        }
-      }
+      // If we can't match to a seeded vendor, ignore it (prevents consumer receipts from polluting the dashboard).
         
       if (matchedVendor) {
+        // Exclude non-developer/uncurated vendors (we only want seeded services to appear in spend)
+        if (matchedVendor.category === "Other") {
+          console.log(`Skipping vendor in Other category: ${matchedVendor.name}`);
+          results.failed++;
+          continue;
+        }
+
         vendorId = matchedVendor.id;
         console.log(`Matched vendor: ${matchedVendor.name} for email from ${email.from}`);
           
@@ -372,6 +322,12 @@ export async function POST(request: Request) {
             isActive: true,
           });
         }
+      }
+
+      if (!vendorId) {
+        console.log(`Skipping - could not match vendor for "${email.subject}" (parsed=${parsed.vendorName})`);
+        results.failed++;
+        continue;
       }
 
       // Store invoice with email metadata for verification
