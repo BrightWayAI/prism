@@ -2,7 +2,7 @@ import { signIn } from "@/lib/auth";
 import { PrismLogo } from "@/components/ui/prism-logo";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="w-full max-w-sm space-y-8">
@@ -11,7 +11,7 @@ export default function LoginPage() {
             <PrismLogo size="lg" />
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Welcome back
+            Start your 7-day free trial
           </p>
         </div>
 
@@ -47,16 +47,28 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground">
-          We&apos;ll request read-only access to your Gmail to detect invoices.
-          <br />
-          Your emails are never stored.
-        </p>
+        <div className="space-y-4">
+          <div className="rounded-lg bg-secondary/50 p-4">
+            <p className="text-sm font-medium">What you get:</p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              <li>✓ 7 days free, no credit card required</li>
+              <li>✓ Auto-detect invoices from 80+ tools</li>
+              <li>✓ Spend alerts and renewal reminders</li>
+              <li>✓ CSV export for taxes</li>
+            </ul>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            We&apos;ll request read-only access to your Gmail to detect invoices.
+            <br />
+            Your emails are never stored.
+          </p>
+        </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
-            Sign up free
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Log in
           </Link>
         </p>
       </div>

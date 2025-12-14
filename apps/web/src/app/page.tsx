@@ -84,9 +84,9 @@ const SOLUTIONS = [
 function ScatteredLogos({ isGathered }: { isGathered: boolean }) {
   const positions = useRef(
     VENDOR_LOGOS.map(() => ({
-      x: Math.random() * 100 - 50,
-      y: Math.random() * 100 - 50,
-      rotation: Math.random() * 40 - 20,
+      x: Math.random() * 160 - 80,
+      y: Math.random() * 160 - 80,
+      rotation: Math.random() * 60 - 30,
       delay: Math.random() * 0.5,
     }))
   );
@@ -116,7 +116,7 @@ function ScatteredLogos({ isGathered }: { isGathered: boolean }) {
             style={{
               transform: isGathered
                 ? `translate(calc(-50% + ${gatheredX}px), calc(-50% + ${gatheredY}px)) rotate(0deg) scale(1)`
-                : `translate(calc(-50% + ${pos.x * 3}px), calc(-50% + ${pos.y * 3}px)) rotate(${pos.rotation}deg) scale(0.9)`,
+                : `translate(calc(-50% + ${pos.x * 2.5}px), calc(-50% + ${pos.y * 2.5}px)) rotate(${pos.rotation}deg) scale(0.9)`,
               transitionDuration: `${1500 + pos.delay * 800}ms`,
               transitionDelay: isGathered ? `${pos.delay * 500}ms` : "0ms",
             }}
@@ -234,11 +234,11 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, [isGathered]);
 
-  // Auto-rotate features
+  // Auto-rotate features (slower - 6 seconds)
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % FEATURES.length);
-    }, 3000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -248,12 +248,20 @@ export default function HomePage() {
       <nav className="border-b border-border/40">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <PrismLogo size="md" />
-          <Link
-            href="/login"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Start Free Trial
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Start Free Trial
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -311,8 +319,8 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground">setup</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-foreground">Works with</p>
-            <p className="text-sm text-muted-foreground">any Gmail</p>
+            <p className="text-2xl font-bold text-foreground">Read-only</p>
+            <p className="text-sm text-muted-foreground">Gmail access</p>
           </div>
         </div>
       </section>
@@ -548,19 +556,27 @@ export default function HomePage() {
               
               <div className="mt-8 space-y-4">
                 {[
-                  { name: "AWS", amount: "$1,234.56", category: "Cloud" },
-                  { name: "Vercel", amount: "$420.00", category: "Cloud" },
-                  { name: "OpenAI", amount: "$389.00", category: "AI/ML" },
-                  { name: "GitHub", amount: "$252.00", category: "CI/CD" },
-                  { name: "Slack", amount: "$180.00", category: "Productivity" },
+                  { name: "AWS", amount: "$1,234.56", category: "Cloud", logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg" },
+                  { name: "Vercel", amount: "$420.00", category: "Cloud", logo: "https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png" },
+                  { name: "OpenAI", amount: "$389.00", category: "AI/ML", logo: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" },
+                  { name: "GitHub", amount: "$252.00", category: "CI/CD", logo: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" },
+                  { name: "Slack", amount: "$180.00", category: "Productivity", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
                 ].map((service) => (
                   <div
                     key={service.name}
                     className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background text-sm font-medium">
-                        {service.name[0]}
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background overflow-hidden">
+                        <img 
+                          src={service.logo} 
+                          alt={service.name}
+                          className="h-6 w-6 object-contain"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${service.name[0]}</span>`;
+                          }}
+                        />
                       </div>
                       <div>
                         <p className="font-medium">{service.name}</p>

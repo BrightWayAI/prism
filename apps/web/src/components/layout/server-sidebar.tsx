@@ -7,7 +7,7 @@ import {
   Calendar,
   Download,
   Settings,
-  LogOut
+  CreditCard
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -58,6 +58,17 @@ export function ServerSidebar({ currentPath }: ServerSidebarProps) {
 
         {/* Bottom section */}
         <div className="border-t border-border p-4 space-y-1">
+          <Link
+            href="/billing"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              currentPath === "/billing"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <CreditCard className="h-5 w-5" />
+            Billing
+          </Link>
           <Link
             href="/settings"
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
