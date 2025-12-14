@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { db, accounts, vendors } from "@prism/db";
+import { db, accounts } from "@prism/db";
 import { eq, and } from "drizzle-orm";
 
 export async function getGmailClient(userId: string) {
@@ -24,7 +24,6 @@ export async function getGmailClient(userId: string) {
   return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
-// Build search query for a specific vendor's invoice emails
 function buildVendorInvoiceQuery(emailPatterns: string[], daysBack: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysBack);
@@ -34,76 +33,111 @@ function buildVendorInvoiceQuery(emailPatterns: string[], daysBack: number): str
   const fromQuery = emailPatterns.map(p => `from:${p}`).join(" OR ");
   
   // Search for invoice-related emails from this vendor
-  return `(${fromQuery}) (receipt OR invoice OR "payment" OR "charged" OR "billing") after:${afterDate}`;
+  return `(${fromQuery}) (receipt OR invoice OR "payment" OR "payment received" OR "charged" OR "billing" OR "statement") -in:spam -in:trash after:${afterDate}`;
 }
 
-// Search for invoice emails from ALL known vendors
+async function listMessages(
+  gmail: ReturnType<typeof google.gmail>,
+  query: string,
+  maxResults: number
+) {
+  const messages: { id?: string | null; threadId?: string | null }[] = [];
+  let pageToken: string | undefined;
+
+  while (messages.length < maxResults) {
+    const remaining = maxResults - messages.length;
+    const response = await gmail.users.messages.list({
+      userId: "me",
+      q: query,
+      maxResults: Math.min(500, remaining),
+      pageToken,
+    });
+
+    if (response.data.messages) {
+      messages.push(...response.data.messages);
+    }
+
+    pageToken = response.data.nextPageToken || undefined;
+    if (!pageToken) break;
+  }
+
+  return messages;
+}
+
 export async function searchInvoiceEmails(
   userId: string,
   options: { daysBack?: number; maxResults?: number; vendorIds?: string[] } = {}
 ) {
   const gmail = await getGmailClient(userId);
-  const { maxResults = 100, daysBack = 90, vendorIds } = options;
+  const { maxResults = 200, daysBack = 90, vendorIds } = options;
 
-  // Get vendors to search for
-  let vendorsToSearch;
-  if (vendorIds && vendorIds.length > 0) {
-    vendorsToSearch = await db.query.vendors.findMany({
-      where: (vendors, { inArray }) => inArray(vendors.id, vendorIds),
-    });
-  } else {
-    vendorsToSearch = await db.query.vendors.findMany();
-  }
-
-  // Collect all email patterns from vendors
-  const allPatterns: string[] = [];
-  for (const vendor of vendorsToSearch) {
-    if (vendor.emailPatterns && vendor.emailPatterns.length > 0) {
-      allPatterns.push(...vendor.emailPatterns);
-    }
-  }
-
-  // IMPORTANT: Always include payment processors (Stripe, Paddle, etc.)
-  // These send receipts on behalf of vendors - we parse vendor from subject line
-  const paymentProcessors = [
-    "@stripe.com",
-    "@paddle.com", 
-    "@chargebee.com",
-    "@recurly.com",
-    "@braintreegateway.com",
-    "payments-noreply@google.com",  // Google Cloud/Workspace payments
-  ];
-  
-  for (const processor of paymentProcessors) {
-    if (!allPatterns.includes(processor)) {
-      allPatterns.push(processor);
-    }
-  }
-
-  if (allPatterns.length === 0) {
-    console.log("No vendor email patterns found");
-    return [];
-  }
-
-  // Build combined query
+  // Build date query
   const date = new Date();
   date.setDate(date.getDate() - daysBack);
   const afterDate = date.toISOString().split("T")[0].replace(/-/g, "/");
   
-  const fromQuery = allPatterns.map(p => `from:${p}`).join(" OR ");
-  // Only search for actual receipts and invoices - exclude alerts, reminders, etc.
-  const searchQuery = `(${fromQuery}) (receipt OR invoice OR "payment received" OR "payment confirmed" OR "successfully charged") -"budget alert" -"budget reached" -reminder -"payment due" -"payment failed" after:${afterDate}`;
-  
-  console.log("Gmail search query (vendors only):", searchQuery.slice(0, 200) + "...");
+  // BROAD search: Find ANY email that looks like an invoice or receipt.
+  // IMPORTANT: don't exclude "unsubscribe" — many legit receipts include it in the footer.
+  const keywordQuery = [
+    "invoice",
+    "receipt",
+    '"payment received"',
+    '"payment confirmation"',
+    '"payment amount"',
+    '"your payment"',
+    '"successfully charged"',
+    '"billing statement"',
+    '"tax invoice"',
+    '"order confirmation"',
+  ].join(" OR ");
 
-  const response = await gmail.users.messages.list({
-    userId: "me",
-    q: searchQuery,
-    maxResults,
-  });
+  const broadQuery = `(${keywordQuery}) -"budget alert" -"budget reached" -"usage alert" -reminder -"payment due" -"payment failed" -in:spam -in:trash after:${afterDate}`;
 
-  console.log(`Found ${response.data.messages?.length || 0} emails from known vendors`);
-  return response.data.messages || [];
+  console.log("Gmail search query (broad):", broadQuery);
+
+  const broadMessages = await listMessages(gmail, broadQuery, maxResults);
+
+  // If the user selected specific vendors, also search by vendor email patterns to catch receipts
+  // that don't contain obvious keywords.
+  let vendorMessages: { id?: string | null; threadId?: string | null }[] = [];
+  if (vendorIds && vendorIds.length > 0) {
+    const vendorsToSearch = await db.query.vendors.findMany({
+      where: (v, { inArray }) => inArray(v.id, vendorIds),
+    });
+
+    const allPatterns = vendorsToSearch.flatMap((v) => v.emailPatterns || []);
+
+    // Always include payment processors that send receipts on behalf of tools.
+    const paymentProcessors = [
+      "@stripe.com",
+      "@paddle.com",
+      "@chargebee.com",
+      "@recurly.com",
+      "@braintreegateway.com",
+      "payments-noreply@google.com",
+    ];
+
+    for (const processor of paymentProcessors) {
+      if (!allPatterns.includes(processor)) allPatterns.push(processor);
+    }
+
+    if (allPatterns.length > 0) {
+      const vendorQuery = buildVendorInvoiceQuery(allPatterns, daysBack);
+      console.log("Gmail search query (vendors):", vendorQuery);
+      vendorMessages = await listMessages(gmail, vendorQuery, maxResults);
+    }
+  }
+
+  const merged = new Map<string, { id?: string | null; threadId?: string | null }>();
+  for (const m of [...broadMessages, ...vendorMessages]) {
+    if (typeof m.id === "string" && m.id.length > 0) merged.set(m.id, m);
+  }
+
+  console.log(
+    `Found ${merged.size} potential invoice emails (broad=${broadMessages.length}, vendors=${vendorMessages.length})`
+  );
+
+  return Array.from(merged.values());
 }
 
 // Recursively extract text content from email parts

@@ -94,6 +94,15 @@ export const vendorSeedData: NewVendor[] = [
     emailPatterns: ["@linode.com", "@akamai.com"],
   },
 
+  // AI Development Tools
+  {
+    name: "Factory",
+    slug: "factory",
+    logoUrl: "https://factory.ai/favicon.ico",
+    category: "AI/ML",
+    emailPatterns: ["@factory.ai", "contact@factory.ai"],
+  },
+
   // DevOps & CI/CD
   {
     name: "GitHub",
@@ -482,13 +491,6 @@ export const vendorSeedData: NewVendor[] = [
   },
 
   // Dev Tools
-  {
-    name: "Factory",
-    slug: "factory",
-    logoUrl: "https://factory.ai/favicon.ico",
-    category: "Dev Tools",
-    emailPatterns: ["@factory.ai"],
-  },
   {
     name: "JetBrains",
     slug: "jetbrains",

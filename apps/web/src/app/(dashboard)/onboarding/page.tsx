@@ -113,7 +113,7 @@ export default function OnboardingPage() {
           <div className="text-center">
             <h1 className="text-3xl font-bold">Welcome to <PrismLogo size="lg" /></h1>
             <p className="mt-2 text-muted-foreground">
-              Let's scan your inbox for SaaS invoices and receipts
+              Let&apos;s scan your inbox for SaaS invoices and receipts
             </p>
           </div>
 

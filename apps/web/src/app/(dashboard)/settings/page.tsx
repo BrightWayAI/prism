@@ -54,15 +54,6 @@ export default async function SettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Renewal reminders</p>
-                <p className="text-sm text-muted-foreground">
-                  Get reminded 30 days before annual renewals
-                </p>
-              </div>
-              <input type="checkbox" defaultChecked className="h-4 w-4" />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
                 <p className="font-medium">Email notifications</p>
                 <p className="text-sm text-muted-foreground">
                   Receive alerts via email in addition to in-app

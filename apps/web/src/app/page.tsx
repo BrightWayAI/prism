@@ -59,8 +59,8 @@ const USE_CASES = [
   },
   {
     icon: "🔔",
-    title: "Never miss a renewal",
-    description: "Annual subscriptions sneak up on you. Get notified before JetBrains, Figma, or any yearly tool renews.",
+    title: "Catch surprise annual charges",
+    description: "Yearly plans hit once and you forget about them. Prism surfaces the invoice so you can cancel fast if you need to.",
   },
 ];
 
@@ -68,7 +68,7 @@ const PAIN_POINTS = [
   "\"Where's that Anthropic receipt?\" — you, at tax time",
   "No idea if your OpenAI spend went up 20% or 200%",
   "Discovering you paid $600/year for a tool you used once",
-  "Annual renewals that hit when you least expect them",
+  "Surprise annual charges that hit when you least expect them",
   "That sinking \"wait, I'm still paying for THAT?\" moment",
 ];
 

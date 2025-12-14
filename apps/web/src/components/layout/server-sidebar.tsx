@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   Receipt, 
   Bell, 
-  Calendar,
   Download,
   Settings,
   CreditCard
@@ -14,7 +13,6 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/renewals", label: "Renewals", icon: Calendar },
   { href: "/export", label: "Export", icon: Download },
 ];
 

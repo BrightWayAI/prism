@@ -79,7 +79,7 @@ export default function AlertsPage() {
           <div>
             <h1 className="text-2xl font-semibold">Alerts</h1>
             <p className="text-muted-foreground">
-              Spend spikes, renewal reminders, and notifications
+              Spend spikes and invoice notifications
             </p>
           </div>
           {unreadCount > 0 && (
@@ -100,8 +100,7 @@ export default function AlertsPage() {
               <Bell className="h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium">No alerts yet</h3>
               <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-                You&apos;ll see notifications here when your spend increases significantly, 
-                renewals are coming up, or new invoices are detected.
+                You&apos;ll see notifications here when your spend increases significantly or new invoices are detected.
               </p>
             </CardContent>
           </Card>
