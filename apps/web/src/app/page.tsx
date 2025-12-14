@@ -26,34 +26,57 @@ const FEATURES = [
   {
     icon: "📧",
     title: "Connect Gmail",
-    description: "Securely connect your inbox. We only read billing emails from known vendors.",
+    description: "One-click Google sign-in. We only read receipts from known dev tool vendors—never your personal emails.",
   },
   {
     icon: "🔍",
-    title: "Auto-detect services",
-    description: "Prism finds invoices from 80+ SaaS tools—AWS, Vercel, OpenAI, Stripe, and more.",
+    title: "Auto-detect your tools",
+    description: "Prism scans for invoices from 80+ services—AWS, OpenAI, Vercel, Anthropic, Supabase, and more. You choose which to track.",
   },
   {
     icon: "📊",
-    title: "See your spend",
-    description: "One dashboard shows every subscription, sorted by cost. No more surprises.",
+    title: "See where your money goes",
+    description: "One dashboard shows every subscription, sorted by cost. Get alerts for spikes. Export for taxes. No more surprises.",
+  },
+];
+
+const USE_CASES = [
+  {
+    icon: "🤖",
+    title: "Track AI API spend",
+    description: "OpenAI, Anthropic, and Replicate usage can spike without warning. See trends before they become $500 problems.",
+  },
+  {
+    icon: "👻",
+    title: "Catch zombie subscriptions",
+    description: "That monitoring tool from your last project? Still billing. Prism surfaces forgotten tools before they auto-renew.",
+  },
+  {
+    icon: "📄",
+    title: "Taxes in 30 seconds",
+    description: "Export a clean CSV of all your dev tool expenses. No more hunting through Gmail for receipts every April.",
+  },
+  {
+    icon: "🔔",
+    title: "Never miss a renewal",
+    description: "Annual subscriptions sneak up on you. Get notified before JetBrains, Figma, or any yearly tool renews.",
   },
 ];
 
 const PAIN_POINTS = [
-  "Invoices buried across 20+ email threads",
-  "No clue what you're spending each month",
-  "Forgotten trials still charging your card",
-  "Tax time = hunting for receipts",
-  "That sinking feeling: \"Wait, I pay for THAT?\"",
+  "\"Where's that Anthropic receipt?\" — you, at tax time",
+  "No idea if your OpenAI spend went up 20% or 200%",
+  "Discovering you paid $600/year for a tool you used once",
+  "Annual renewals that hit when you least expect them",
+  "That sinking \"wait, I'm still paying for THAT?\" moment",
 ];
 
 const SOLUTIONS = [
-  "Every invoice automatically detected",
-  "Monthly spend dashboard at a glance",
-  "Spot unused tools before they renew",
-  "Export clean reports for taxes",
-  "Finally know your true SaaS costs",
+  "Every receipt automatically detected and organized",
+  "Monthly spend dashboard — see totals at a glance",
+  "Spot zombie subscriptions before they renew",
+  "Get alerts when spend spikes unexpectedly",
+  "Export clean reports for taxes in one click",
 ];
 
 // Floating invoice animation component
@@ -213,27 +236,27 @@ export default function HomePage() {
           <span className="text-xl font-bold text-primary">Prism</span>
           <Link
             href="/login"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Sign in
+            Start Free Trial
           </Link>
         </div>
       </nav>
 
       {/* Hero */}
       <section ref={heroRef} className="mx-auto max-w-6xl px-6 py-16 text-center">
-        <p className="text-sm font-medium text-primary animate-fade-in">For indie hackers & small teams</p>
+        <p className="text-sm font-medium text-primary animate-fade-in">For developers drowning in subscriptions</p>
         <h1 className="mt-4 animate-fade-in text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-          Know exactly what you
+          Your AI stack is costing
           <br />
           <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            spend on dev tools
+            more than you think
           </span>
         </h1>
         
-        <p className="mx-auto mt-6 max-w-xl text-xl text-muted-foreground animate-fade-in-delay">
-          You&apos;re using 15+ SaaS tools. Do you know what they cost? Prism connects to your 
-          Gmail and shows you exactly where your money goes.
+        <p className="mx-auto mt-6 max-w-2xl text-xl text-muted-foreground animate-fade-in-delay">
+          OpenAI, Vercel, Supabase, Railway, Anthropic... the average developer now pays for 20+ tools. 
+          Prism connects to Gmail and shows you exactly where your money goes—before the next surprise bill.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center animate-fade-in-delay-2">
@@ -241,16 +264,16 @@ export default function HomePage() {
             href="/login"
             className="group inline-flex h-12 items-center justify-center rounded-lg bg-primary px-8 text-lg font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-lg hover:shadow-primary/25"
           >
-            Get Started Free
+            Start Free Trial
             <span className="ml-2 transition-transform group-hover:translate-x-1">→</span>
           </Link>
-          <p className="text-sm text-muted-foreground">No credit card required</p>
+          <p className="text-sm text-muted-foreground">7 days free. No credit card required.</p>
         </div>
 
         {/* Animated scattered logos */}
         <div className="mt-12">
           <p className="mb-4 text-sm font-medium text-muted-foreground">
-            {isGathered ? "All your invoices, unified" : "Your invoices are everywhere..."}
+            {isGathered ? "Automatically detects receipts from 80+ dev tools" : "Your receipts are scattered everywhere..."}
           </p>
           <ScatteredLogos isGathered={isGathered} />
           <button
@@ -266,22 +289,36 @@ export default function HomePage() {
       <section className="border-y border-border/40 bg-secondary/30 py-8">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-8 px-6 sm:gap-16">
           <div className="text-center">
-            <p className="text-3xl font-bold text-primary">
-              <AnimatedCounter target={80} />+
-            </p>
-            <p className="text-sm text-muted-foreground">Services tracked</p>
+            <p className="text-2xl font-bold text-foreground">80+ vendors</p>
+            <p className="text-sm text-muted-foreground">supported</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-primary">
-              $<AnimatedCounter target={2400000} />
-            </p>
-            <p className="text-sm text-muted-foreground">Spend analyzed</p>
+            <p className="text-2xl font-bold text-foreground">5-minute</p>
+            <p className="text-sm text-muted-foreground">setup</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-primary">
-              <AnimatedCounter target={15000} />+
+            <p className="text-2xl font-bold text-foreground">Works with</p>
+            <p className="text-sm text-muted-foreground">any Gmail</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Problem Section */}
+      <section className="py-24">
+        <div className="mx-auto max-w-3xl px-6">
+          <h2 className="text-center text-3xl font-bold sm:text-4xl">
+            The AI era broke your budget
+          </h2>
+          <div className="mt-8 space-y-4 text-lg text-muted-foreground">
+            <p>Two years ago, you had AWS and maybe Heroku.</p>
+            <p>
+              Now you&apos;re paying for 3-4 AI APIs. Multiple databases. Several deployment platforms. 
+              Monitoring. Auth. Email. Analytics. Vector storage.
             </p>
-            <p className="text-sm text-muted-foreground">Invoices organized</p>
+            <p>
+              Each one bills differently—monthly, annual, usage-based, metered. Receipts are scattered 
+              across your inbox. And somewhere in there, you&apos;re paying for tools you forgot you signed up for.
+            </p>
           </div>
         </div>
       </section>
@@ -293,8 +330,7 @@ export default function HomePage() {
             Your SaaS spending is a black box
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-            As a solo builder or small team, you&apos;re juggling 15-40 tools. 
-            Prism brings clarity to the chaos so you can focus on building.
+            You&apos;re juggling 20+ subscriptions. Prism brings clarity to the chaos.
           </p>
 
           <div className="mt-16 grid gap-8 lg:grid-cols-2">
@@ -466,21 +502,27 @@ export default function HomePage() {
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
             See exactly where your money goes. Filter by month, drill into any service, 
-            export for expense reports.
+            get alerts when costs spike.
           </p>
 
           {/* Mock dashboard */}
           <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             <div className="border-b border-border bg-secondary/50 px-6 py-4">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-red-500/50"></div>
-                <div className="h-3 w-3 rounded-full bg-yellow-500/50"></div>
-                <div className="h-3 w-3 rounded-full bg-green-500/50"></div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-red-500/50"></div>
+                  <div className="h-3 w-3 rounded-full bg-yellow-500/50"></div>
+                  <div className="h-3 w-3 rounded-full bg-green-500/50"></div>
+                </div>
+                {/* Alert badge */}
+                <div className="flex items-center gap-2 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-500">
+                  🔔 OpenAI spend up 47% vs last month
+                </div>
               </div>
             </div>
             <div className="p-8">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="text-left">
                   <p className="text-sm text-muted-foreground">This month</p>
                   <p className="text-4xl font-bold">$2,847.00</p>
                 </div>
@@ -520,8 +562,27 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Privacy */}
+      {/* Use Cases */}
       <section className="py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="text-center text-3xl font-bold sm:text-4xl">
+            Built for how developers actually work
+          </h2>
+          
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {USE_CASES.map((item) => (
+              <div key={item.title} className="rounded-xl border border-border bg-card p-6">
+                <div className="text-3xl">{item.icon}</div>
+                <h3 className="mt-3 font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security */}
+      <section className="border-y border-border/40 bg-secondary/20 py-24">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-3xl font-bold sm:text-4xl">
             Your data stays yours
@@ -532,10 +593,10 @@ export default function HomePage() {
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: "🔒", title: "Read-only access", desc: "We can't send, delete, or modify emails" },
-              { icon: "🎯", title: "Vendor emails only", desc: "Only billing emails from 80+ known services" },
-              { icon: "🚫", title: "No personal data", desc: "We don't read your personal conversations" },
-              { icon: "🗑️", title: "Delete anytime", desc: "Revoke access and we delete everything" },
+              { icon: "🔒", title: "Read-only access", desc: "We can't send, delete, or modify your emails. Ever." },
+              { icon: "🎯", title: "Vendor emails only", desc: "Prism only reads receipts from 80+ known dev tools. Personal conversations are ignored." },
+              { icon: "🚫", title: "No data selling", desc: "Your spend data is yours. We don't sell it, share it, or use it for ads." },
+              { icon: "🗑️", title: "Delete anytime", desc: "Revoke access with one click. We delete all your data immediately." },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-border bg-card p-6 text-center">
                 <div className="text-3xl">{item.icon}</div>
@@ -547,25 +608,88 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="py-24">
+        <div className="mx-auto max-w-4xl px-6">
+          <h2 className="text-center text-3xl font-bold sm:text-4xl">
+            One subscription that pays for itself
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
+            Most users find at least one forgotten tool in their first scan. That&apos;s $40+ saved before your trial ends.
+          </p>
+
+          <div className="mt-12 grid gap-8 lg:grid-cols-2">
+            {/* Pricing card */}
+            <div className="rounded-2xl border-2 border-primary bg-card p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-4xl font-bold">$40<span className="text-lg font-normal text-muted-foreground">/month</span></p>
+                </div>
+                <span className="rounded-full bg-primary/20 px-3 py-1 text-sm font-medium text-primary">
+                  7 days free
+                </span>
+              </div>
+              
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Unlimited services tracked",
+                  "80+ vendor detection",
+                  "Spend alerts & notifications",
+                  "Renewal reminders",
+                  "CSV export for taxes",
+                  "6-month invoice history",
+                ].map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-sm">
+                    <span className="text-primary">✓</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              
+              <Link
+                href="/login"
+                className="mt-8 flex h-12 w-full items-center justify-center rounded-lg bg-primary text-lg font-medium text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                Start Free Trial
+              </Link>
+              <p className="mt-3 text-center text-sm text-muted-foreground">
+                No credit card required to start. Cancel anytime.
+              </p>
+            </div>
+            
+            {/* Value callout */}
+            <div className="flex flex-col justify-center rounded-2xl border border-border bg-secondary/30 p-8">
+              <p className="text-2xl">💡</p>
+              <h3 className="mt-4 text-xl font-semibold">The math is simple</h3>
+              <p className="mt-4 text-muted-foreground">
+                If Prism helps you find just <span className="font-semibold text-foreground">ONE</span> forgotten $50/month subscription, 
+                it pays for itself—and you pocket the difference every month after.
+              </p>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Average user discovers 2-3 tools they forgot they were paying for.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="border-t border-border/40 bg-primary py-24 text-primary-foreground">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-3xl font-bold sm:text-4xl">
-            Take control of your SaaS spend
+            Stop guessing what you spend
           </h2>
           <p className="mt-4 text-lg text-primary-foreground/80">
-            Join solo builders and small teams who finally know where their money goes.
-            <br />
-            Connect Gmail → See your spend → Make smarter decisions.
+            Connect Gmail. See your costs. Cut the waste.
           </p>
           <Link
             href="/login"
             className="mt-8 inline-flex h-12 items-center justify-center rounded-lg bg-background px-8 text-lg font-medium text-foreground transition-all hover:bg-background/90 hover:scale-105"
           >
-            Start Tracking Free →
+            Start Free Trial →
           </Link>
           <p className="mt-4 text-sm text-primary-foreground/60">
-            Free forever for personal use • No credit card required
+            7 days free. Then $40/month. Cancel anytime.
           </p>
         </div>
       </section>
@@ -573,7 +697,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border/40 py-8">
         <div className="mx-auto max-w-6xl px-6 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Prism. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Prism by Brightway AI. All rights reserved.</p>
         </div>
       </footer>
     </div>
