@@ -4,22 +4,22 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 
 const VENDOR_LOGOS = [
-  { name: "AWS", color: "#FF9900", icon: "☁️" },
-  { name: "Vercel", color: "#000000", icon: "▲" },
-  { name: "OpenAI", color: "#10A37F", icon: "🤖" },
-  { name: "Stripe", color: "#635BFF", icon: "💳" },
-  { name: "GitHub", color: "#181717", icon: "🐙" },
-  { name: "Slack", color: "#4A154B", icon: "💬" },
-  { name: "Figma", color: "#F24E1E", icon: "🎨" },
-  { name: "Railway", color: "#0B0D0E", icon: "🚂" },
-  { name: "Anthropic", color: "#D4A574", icon: "🧠" },
-  { name: "Supabase", color: "#3ECF8E", icon: "⚡" },
-  { name: "Linear", color: "#5E6AD2", icon: "📋" },
-  { name: "Notion", color: "#000000", icon: "📝" },
-  { name: "Datadog", color: "#632CA6", icon: "🐕" },
-  { name: "MongoDB", color: "#47A248", icon: "🍃" },
-  { name: "Twilio", color: "#F22F46", icon: "📱" },
-  { name: "Sentry", color: "#362D59", icon: "🔍" },
+  { name: "AWS", color: "#FF9900", logo: "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg" },
+  { name: "Vercel", color: "#000000", logo: "https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png" },
+  { name: "OpenAI", color: "#10A37F", logo: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg" },
+  { name: "Stripe", color: "#635BFF", logo: "https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" },
+  { name: "GitHub", color: "#181717", logo: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" },
+  { name: "Slack", color: "#4A154B", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
+  { name: "Figma", color: "#F24E1E", logo: "https://upload.wikimedia.org/wikipedia/commons/3/33/Figma-logo.svg" },
+  { name: "Railway", color: "#0B0D0E", logo: "https://railway.app/brand/logo-light.svg" },
+  { name: "Anthropic", color: "#D4A574", logo: "https://upload.wikimedia.org/wikipedia/commons/7/78/Anthropic_logo.svg" },
+  { name: "Supabase", color: "#3ECF8E", logo: "https://seeklogo.com/images/S/supabase-logo-DCC676FFE2-seeklogo.com.png" },
+  { name: "Linear", color: "#5E6AD2", logo: "https://asset.brandfetch.io/iduDa181eM/idYYbqOlKi.png" },
+  { name: "Notion", color: "#000000", logo: "https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" },
+  { name: "Datadog", color: "#632CA6", logo: "https://imgix.datadoghq.com/img/dd_logo_n_70x75.png" },
+  { name: "MongoDB", color: "#47A248", logo: "https://www.mongodb.com/assets/images/global/favicon.ico" },
+  { name: "Twilio", color: "#F22F46", logo: "https://www.twilio.com/assets/icons/twilio-icon-512.png" },
+  { name: "Render", color: "#46E3B7", logo: "https://render.com/favicon.png" },
 ];
 
 const FEATURES = [
@@ -41,19 +41,19 @@ const FEATURES = [
 ];
 
 const PAIN_POINTS = [
-  "Invoices scattered across 20+ inboxes",
-  "No idea what you're actually spending",
-  "Surprise charges from forgotten trials",
-  "Hours wasted tracking down receipts",
-  "Finance team asking for expense reports",
+  "Invoices buried across 20+ email threads",
+  "No clue what you're spending each month",
+  "Forgotten trials still charging your card",
+  "Tax time = hunting for receipts",
+  "That sinking feeling: \"Wait, I pay for THAT?\"",
 ];
 
 const SOLUTIONS = [
-  "Every invoice in one place",
-  "Real-time spend visibility",
-  "Catch unused subscriptions",
-  "Export reports in seconds",
-  "Stay on top of renewals",
+  "Every invoice automatically detected",
+  "Monthly spend dashboard at a glance",
+  "Spot unused tools before they renew",
+  "Export clean reports for taxes",
+  "Finally know your true SaaS costs",
 ];
 
 // Floating invoice animation component
@@ -98,14 +98,24 @@ function ScatteredLogos({ isGathered }: { isGathered: boolean }) {
             }}
           >
             <div
-              className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 bg-card text-2xl shadow-lg transition-all duration-500 ${
+              className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 bg-card shadow-lg transition-all duration-500 overflow-hidden ${
                 isGathered ? "border-primary/50 shadow-primary/20" : "border-border"
               }`}
               style={{
                 boxShadow: isGathered ? `0 0 20px ${vendor.color}40` : undefined,
               }}
+              title={vendor.name}
             >
-              {vendor.icon}
+              <img 
+                src={vendor.logo} 
+                alt={vendor.name}
+                className="h-8 w-8 object-contain"
+                onError={(e) => {
+                  // Fallback to first letter if image fails
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = `<span class="text-lg font-bold">${vendor.name[0]}</span>`;
+                }}
+              />
             </div>
           </div>
         );
@@ -212,17 +222,18 @@ export default function HomePage() {
 
       {/* Hero */}
       <section ref={heroRef} className="mx-auto max-w-6xl px-6 py-16 text-center">
-        <h1 className="animate-fade-in text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-          For every scattered
+        <p className="text-sm font-medium text-primary animate-fade-in">For indie hackers & small teams</p>
+        <h1 className="mt-4 animate-fade-in text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+          Know exactly what you
           <br />
           <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            SaaS invoice
+            spend on dev tools
           </span>
         </h1>
         
         <p className="mx-auto mt-6 max-w-xl text-xl text-muted-foreground animate-fade-in-delay">
-          Stop digging through emails. Prism automatically finds and organizes 
-          your dev tool invoices in one dashboard.
+          You&apos;re using 15+ SaaS tools. Do you know what they cost? Prism connects to your 
+          Gmail and shows you exactly where your money goes.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center animate-fade-in-delay-2">
@@ -279,11 +290,11 @@ export default function HomePage() {
       <section className="border-y border-border/40 bg-secondary/20 py-24">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-3xl font-bold sm:text-4xl">
-            Invoice chaos is over
+            Your SaaS spending is a black box
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-            Stop digging through emails. Prism automatically finds and organizes 
-            every SaaS invoice so you always know what you're spending.
+            As a solo builder or small team, you&apos;re juggling 15-40 tools. 
+            Prism brings clarity to the chaos so you can focus on building.
           </p>
 
           <div className="mt-16 grid gap-8 lg:grid-cols-2">
@@ -540,19 +551,21 @@ export default function HomePage() {
       <section className="border-t border-border/40 bg-primary py-24 text-primary-foreground">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <h2 className="text-3xl font-bold sm:text-4xl">
-            Stop guessing what you spend on SaaS
+            Take control of your SaaS spend
           </h2>
           <p className="mt-4 text-lg text-primary-foreground/80">
-            Connect your Gmail and see your entire SaaS spend in under 2 minutes.
+            Join solo builders and small teams who finally know where their money goes.
+            <br />
+            Connect Gmail → See your spend → Make smarter decisions.
           </p>
           <Link
             href="/login"
-            className="mt-8 inline-flex h-12 items-center justify-center rounded-lg bg-background px-8 text-lg font-medium text-foreground transition-colors hover:bg-background/90"
+            className="mt-8 inline-flex h-12 items-center justify-center rounded-lg bg-background px-8 text-lg font-medium text-foreground transition-all hover:bg-background/90 hover:scale-105"
           >
-            Get Started Free
+            Start Tracking Free →
           </Link>
           <p className="mt-4 text-sm text-primary-foreground/60">
-            Free to use • No credit card required
+            Free forever for personal use • No credit card required
           </p>
         </div>
       </section>
