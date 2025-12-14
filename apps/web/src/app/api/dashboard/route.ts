@@ -150,8 +150,8 @@ export async function GET(request: Request) {
 
     // Calculate totals
     const services = Object.values(vendorSpend).filter((v) => v.vendorId !== "unknown");
-    const totalSpendInRange = services.reduce((sum, v) => sum + v.totalSpend, 0);
-    const totalPreviousSpend = services.reduce((sum, v) => sum + v.previousMonthSpend, 0);
+    const totalSpendInRange = Object.values(vendorSpend).reduce((sum, v) => sum + v.totalSpend, 0);
+    const totalPreviousSpend = Object.values(vendorSpend).reduce((sum, v) => sum + v.previousMonthSpend, 0);
 
     // Sort by total spend in the selected range
     services.sort((a, b) => b.totalSpend - a.totalSpend);

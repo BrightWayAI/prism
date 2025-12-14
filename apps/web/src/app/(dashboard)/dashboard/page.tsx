@@ -237,7 +237,6 @@ export default function DashboardPage() {
               totalSpend={data.totalSpend}
               previousSpend={data.previousSpend}
               serviceCount={data.serviceCount}
-              upcomingRenewals={0}
             />
 
             {data.services.length === 0 ? (

@@ -9,7 +9,6 @@ interface SpendSummaryProps {
   previousSpend: number;
   currency?: string;
   serviceCount: number;
-  upcomingRenewals: number;
 }
 
 export function SpendSummary({
@@ -17,7 +16,6 @@ export function SpendSummary({
   previousSpend,
   currency = "USD",
   serviceCount,
-  upcomingRenewals,
 }: SpendSummaryProps) {
   const percentChange = previousSpend > 0
     ? ((totalSpend - previousSpend) / previousSpend) * 100
@@ -25,7 +23,7 @@ export function SpendSummary({
   const isIncrease = percentChange > 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -79,20 +77,6 @@ export function SpendSummary({
           <div className="text-2xl font-bold tabular-nums">{serviceCount}</div>
           <p className="mt-1 text-xs text-muted-foreground">
             Tracked subscriptions
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Upcoming Renewals
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold tabular-nums">{upcomingRenewals}</div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Within next 30 days
           </p>
         </CardContent>
       </Card>

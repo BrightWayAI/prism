@@ -3,7 +3,80 @@ import { auth } from "@/lib/auth";
 import { searchInvoiceEmails, getEmailContent } from "@/lib/gmail";
 import { parseInvoiceEmail } from "@/lib/parser";
 import { db, invoices, vendors, userVendors } from "@prism/db";
-import { eq, and, ilike, inArray } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
+
+const CONSUMER_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "yahoo.com",
+  "icloud.com",
+]);
+
+function slugifyVendorName(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function extractEmailDomain(fromHeader: string): string | null {
+  const angleMatch = fromHeader.match(/<([^>]+)>/);
+  const raw = angleMatch ? angleMatch[1] : fromHeader;
+  const emailMatch = raw.match(/[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/i);
+  if (!emailMatch) return null;
+  return emailMatch[1].toLowerCase();
+}
+
+async function getOrCreateVendorByName(
+  vendorName: string,
+  emailFrom: string
+): Promise<typeof vendors.$inferSelect | null> {
+  const trimmed = vendorName.trim();
+  if (!trimmed) return null;
+
+  const existingByName = await db.query.vendors.findFirst({
+    where: ilike(vendors.name, trimmed),
+  });
+  if (existingByName) return existingByName;
+
+  const domain = extractEmailDomain(emailFrom);
+  const emailPatterns =
+    domain && !CONSUMER_EMAIL_DOMAINS.has(domain) ? [`@${domain}`] : [];
+
+  const baseSlug = slugifyVendorName(trimmed) || "vendor";
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const slug =
+      attempt === 0
+        ? baseSlug
+        : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const [created] = await db
+      .insert(vendors)
+      .values({
+        name: trimmed,
+        slug,
+        category: "Other",
+        emailPatterns,
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (created) return created;
+
+    const existingBySlug = await db.query.vendors.findFirst({
+      where: eq(vendors.slug, slug),
+    });
+    if (existingBySlug) return existingBySlug;
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -13,26 +86,45 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { daysBack = 90, vendorIds } = body;
+
+  const vendorIds: string[] | undefined = Array.isArray(body?.vendorIds)
+    ? body.vendorIds
+    : undefined;
+
+  const now = new Date();
+
+  let daysBack: number = typeof body?.daysBack === "number" ? body.daysBack : 90;
+  if (!Number.isFinite(daysBack) || daysBack <= 0) daysBack = 90;
+
+  if (body?.startDate) {
+    const start = new Date(body.startDate);
+    if (!isNaN(start.getTime())) {
+      const diffDays = Math.ceil(
+        (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (Number.isFinite(diffDays) && diffDays > 0) {
+        daysBack = Math.min(Math.max(diffDays, 1), 365);
+      }
+    }
+  }
+
+  const maxResultsRaw = typeof body?.maxResults === "number" ? body.maxResults : null;
+  const maxResults = Math.min(
+    Math.max(maxResultsRaw ?? (daysBack <= 31 ? 500 : 800), 1),
+    2000
+  );
 
   try {
-    // Get the vendors we're searching for
-    let vendorsToProcess;
-    if (vendorIds && vendorIds.length > 0) {
-      vendorsToProcess = await db.query.vendors.findMany({
-        where: inArray(vendors.id, vendorIds),
-      });
-    } else {
-      vendorsToProcess = await db.query.vendors.findMany();
-    }
+    const vendorsForMatching = await db.query.vendors.findMany();
+    console.log(
+      `Invoice parse: daysBack=${daysBack} maxResults=${maxResults} vendorsForMatching=${vendorsForMatching.length}`
+    );
 
-    console.log(`Processing ${vendorsToProcess.length} vendors`);
-
-    // Get emails from known vendors only
+    // Get candidate invoice/receipt emails (broad keyword search + optional vendor-pattern search)
     const messages = await searchInvoiceEmails(session.user.id, {
       daysBack,
       vendorIds,
-      maxResults: 100,
+      maxResults,
     });
 
     const results: { success: number; failed: number; skipped: number } = {
@@ -52,7 +144,9 @@ export async function POST(request: Request) {
         ),
       });
 
-      if (existing) {
+      // If we already have this email, we normally skip.
+      // But if vendorId is null, re-parse so improved matching can backfill missing services.
+      if (existing && existing.vendorId) {
         results.skipped++;
         continue;
       }
@@ -125,19 +219,19 @@ export async function POST(request: Request) {
       // Differentiate Google Cloud vs Google Workspace by subject line
       if (emailFrom.includes("payments-noreply@google.com")) {
         if (emailSubject.includes("google workspace") || emailSubject.includes("workspace")) {
-          matchedVendor = vendorsToProcess.find(v => v.slug === "google-workspace");
+          matchedVendor = vendorsForMatching.find((v) => v.slug === "google-workspace");
           if (matchedVendor) {
             console.log(`Matched Google Workspace from subject`);
           }
         } else if (emailSubject.includes("google cloud") || emailSubject.includes("cloud")) {
-          matchedVendor = vendorsToProcess.find(v => v.slug === "gcp");
+          matchedVendor = vendorsForMatching.find((v) => v.slug === "gcp");
           if (matchedVendor) {
             console.log(`Matched Google Cloud from subject`);
           }
         }
         // Default to Google Cloud for payments-noreply@google.com
         if (!matchedVendor) {
-          matchedVendor = vendorsToProcess.find(v => v.slug === "gcp");
+          matchedVendor = vendorsForMatching.find((v) => v.slug === "gcp");
           console.log(`Defaulting Google payment to Google Cloud`);
         }
       }
@@ -178,7 +272,7 @@ export async function POST(request: Request) {
           const subjectVendorLower = vendorFromSubject.toLowerCase();
           
           // Try to match against our vendor list
-          for (const v of vendorsToProcess) {
+          for (const v of vendorsForMatching) {
             const vNameLower = v.name.toLowerCase();
             const vSlugLower = v.slug.toLowerCase();
             
@@ -203,7 +297,7 @@ export async function POST(request: Request) {
       
       // Strategy 3: Match by email domain pattern
       if (!matchedVendor) {
-        for (const v of vendorsToProcess) {
+        for (const v of vendorsForMatching) {
           if (v.emailPatterns?.some(pattern => {
             // Handle both "@domain.com" and "user@domain.com" patterns
             const normalizedPattern = pattern.toLowerCase();
@@ -225,7 +319,7 @@ export async function POST(request: Request) {
         const parsedNameLower = parsed.vendorName.toLowerCase();
         
         // First try exact/close match in our vendor list
-        for (const v of vendorsToProcess) {
+        for (const v of vendorsForMatching) {
           const vNameLower = v.name.toLowerCase();
           const vSlugLower = v.slug.toLowerCase();
           
@@ -247,6 +341,15 @@ export async function POST(request: Request) {
           if (matchedVendor) {
             console.log(`Matched vendor ${matchedVendor.name} from DB fuzzy search`);
           }
+        }
+      }
+
+      // Strategy 5: If we still couldn't match, create a vendor on-the-fly (so spend doesn't disappear)
+      if (!matchedVendor && parsed.vendorName) {
+        const created = await getOrCreateVendorByName(parsed.vendorName, email.from);
+        if (created) {
+          matchedVendor = created;
+          console.log(`Created vendor on the fly: ${created.name} (${created.slug})`);
         }
       }
         
@@ -273,7 +376,7 @@ export async function POST(request: Request) {
 
       // Store invoice with email metadata for verification
       try {
-        const insertResult = await db.insert(invoices).values({
+        const values = {
           userId: session.user.id,
           vendorId,
           gmailMessageId: message.id,
@@ -292,7 +395,19 @@ export async function POST(request: Request) {
           extractedAmounts: parsed.extractedAmounts || [],
           confidenceScore: (parsed.confidenceScore || 0).toFixed(2),
           isManuallyReviewed: false,
-        }).onConflictDoNothing(); // Prevent duplicates on (userId, gmailMessageId)
+        };
+
+        if (existing) {
+          await db
+            .update(invoices)
+            .set(values)
+            .where(eq(invoices.id, existing.id));
+        } else {
+          await db
+            .insert(invoices)
+            .values(values)
+            .onConflictDoNothing(); // Prevent duplicates on (userId, gmailMessageId)
+        }
         
         results.success++;
       } catch (dbErr) {
