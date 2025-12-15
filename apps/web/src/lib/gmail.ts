@@ -33,8 +33,9 @@ function buildVendorInvoiceQuery(emailPatterns: string[], daysBack: number): str
   // Build from: query for this vendor's email patterns
   const fromQuery = emailPatterns.map(p => `from:${p}`).join(" OR ");
   
-  // Search for invoice-related emails from this vendor
-  return `(${fromQuery}) (receipt OR invoice OR "payment" OR "payment received" OR "charged" OR "billing" OR "statement") -in:spam -in:trash after:${afterDate}`;
+  // Search for billing-related emails from this vendor.
+  // Keep this broader than the "broad" keyword scan because some vendors don't include obvious invoice keywords.
+  return `(${fromQuery}) (receipt OR invoice OR billing OR payment OR charged OR statement OR renewal OR renewed OR subscription OR "plan") -"budget alert" -"usage alert" -reminder -in:spam -in:trash after:${afterDate}`;
 }
 
 async function listMessages(
@@ -96,7 +97,9 @@ export async function searchInvoiceEmails(
 
   console.log("Gmail search query (broad):", broadQuery);
 
-  const broadMessages = await listMessages(gmail, broadQuery, maxResults);
+  // Reserve capacity for vendor-pattern searches so noisy inboxes don't crowd out vendor receipts.
+  const broadLimit = Math.min(maxResults, 400);
+  const broadMessages = await listMessages(gmail, broadQuery, broadLimit);
 
   // Vendor-pattern search fills gaps when the broad query misses receipts (some vendors don't include obvious keywords).
   // We do this even when vendorIds is not provided, but we only fetch additional messages up to the maxResults cap.

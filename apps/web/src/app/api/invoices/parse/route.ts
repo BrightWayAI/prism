@@ -39,6 +39,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+  const force = body?.force === true;
 
   const vendorIds: string[] | undefined = Array.isArray(body?.vendorIds)
     ? body.vendorIds
@@ -100,8 +101,8 @@ export async function POST(request: Request) {
       });
 
       // If we already have this email, we normally skip.
-      // But if vendorId is null, re-parse so improved matching can backfill missing services.
-      if (existing && existing.vendorId) {
+      // But if vendorId is null OR caller requested force reparse, re-run to backfill/fix dates.
+      if (existing && existing.vendorId && !force) {
         results.skipped++;
         continue;
       }

@@ -152,8 +152,6 @@ function isLikelyInvoiceOrReceipt(subject: string, content: string): boolean {
     "update your payment",
     "verify your",
     "confirm your email",
-    "welcome to",
-    "getting started",
     "newsletter",
   ];
   
