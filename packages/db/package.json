@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./curated-vendors": "./src/curated-vendors.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

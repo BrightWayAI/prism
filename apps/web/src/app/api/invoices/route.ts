@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, invoices, vendors } from "@prism/db";
-import { eq, desc, gte, lte, and, sql } from "drizzle-orm";
+import { CURATED_VENDOR_SLUGS } from "@prism/db/curated-vendors";
+import { eq, desc, gte, lte, and, sql, inArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
       })
       .from(invoices)
       .leftJoin(vendors, eq(invoices.vendorId, vendors.id))
-      .where(and(...conditions))
+      .where(and(...conditions, inArray(vendors.slug, CURATED_VENDOR_SLUGS)))
       .orderBy(desc(invoices.invoiceDate));
 
     return NextResponse.json({ invoices: userInvoices });

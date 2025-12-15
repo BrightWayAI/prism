@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { searchInvoiceEmails, getEmailContent } from "@/lib/gmail";
 import { parseInvoiceEmail } from "@/lib/parser";
 import { db, invoices, vendors, userVendors } from "@prism/db";
-import { eq, and, ilike } from "drizzle-orm";
+import { CURATED_VENDOR_SLUGS } from "@prism/db/curated-vendors";
+import { eq, and, ilike, inArray } from "drizzle-orm";
 
 function parseInvoiceDateToUtc(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -54,7 +55,9 @@ export async function POST(request: Request) {
   );
 
   try {
-    const vendorsForMatching = await db.query.vendors.findMany();
+    const vendorsForMatching = await db.query.vendors.findMany({
+      where: inArray(vendors.slug, CURATED_VENDOR_SLUGS),
+    });
     console.log(
       `Invoice parse: daysBack=${daysBack} maxResults=${maxResults} vendorsForMatching=${vendorsForMatching.length}`
     );

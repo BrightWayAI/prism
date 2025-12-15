@@ -1,6 +1,7 @@
 import { google } from "googleapis";
-import { db, accounts } from "@prism/db";
-import { eq, and } from "drizzle-orm";
+import { db, accounts, vendors } from "@prism/db";
+import { CURATED_VENDOR_SLUGS } from "@prism/db/curated-vendors";
+import { eq, and, inArray } from "drizzle-orm";
 
 export async function getGmailClient(userId: string) {
   const account = await db.query.accounts.findFirst({
@@ -233,7 +234,9 @@ export async function getEmailContent(userId: string, messageId: string) {
 
 export async function detectServicesInInbox(userId: string, daysBack: number = 90) {
   const gmail = await getGmailClient(userId);
-  const allVendors = await db.query.vendors.findMany();
+  const allVendors = await db.query.vendors.findMany({
+    where: inArray(vendors.slug, CURATED_VENDOR_SLUGS),
+  });
 
   // Build date query
   const date = new Date();

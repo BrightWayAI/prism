@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, invoices, vendors } from "@prism/db";
-import { eq, desc, gte, lte, sql, and } from "drizzle-orm";
+import { CURATED_VENDOR_SLUGS } from "@prism/db/curated-vendors";
+import { eq, desc, gte, lte, sql, and, inArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
     const previousMonthStart = new Date(Date.UTC(year, month - 1, 1));
     const previousMonthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-    // Get all invoices for the user
+    // Get all invoices for the user (curated vendors only)
     const allInvoices = await db
       .select({
         id: invoices.id,
@@ -72,6 +73,7 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(invoices.userId, session.user.id),
+          inArray(vendors.slug, CURATED_VENDOR_SLUGS),
           gte(invoices.invoiceDate, startDate),
           lte(invoices.invoiceDate, endDate)
         )
