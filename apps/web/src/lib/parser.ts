@@ -125,6 +125,10 @@ function isLikelyInvoiceOrReceipt(subject: string, content: string): boolean {
     "billing statement",
     "statement",
     "bill",
+    "subscription",
+    "renewal",
+    "renewed",
+    "plan",
     "payment received",
     "payment confirmed",
     "your payment of",
@@ -208,53 +212,27 @@ export async function parseInvoiceEmail(email: {
     };
   }
 
-  // If we found a primary amount (from high-confidence patterns), use it directly
+  // Fast-path: if we found a primary amount via high-confidence regex patterns,
+  // skip the LLM call entirely (dramatically speeds up scans).
   if (primaryAmount !== null) {
-    console.log(`Using primary amount from regex: $${primaryAmount}`);
-    
-    // Still call OpenAI for other fields but provide the amount hint
-    const prompt = EXTRACTION_PROMPT
-      .replace("{subject}", email.subject)
-      .replace("{from}", email.from)
-      .replace("{date}", email.date)
-      .replace("{amounts}", `PRIMARY: ${primaryAmount} (use this), others: ${foundAmounts.slice(0, 5).join(", ")}`)
-      .replace("{content}", email.content.slice(0, 4000));
+    const invoiceDate = new Date(email.date);
+    const isoDate = isNaN(invoiceDate.getTime())
+      ? new Date().toISOString().split("T")[0]
+      : invoiceDate.toISOString().split("T")[0];
 
-    try {
-      const openai = getOpenAIClient();
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        max_tokens: 512,
-      });
-
-      const text = response.choices[0]?.message?.content || "";
-      const parsed = JSON.parse(text) as ParsedInvoice;
-      
-      // Override with our high-confidence primary amount
-      parsed.amount = primaryAmount;
-      parsed.confidenceScore = Math.max(parsed.confidenceScore, 0.9);
-      parsed.extractedAmounts = extractedAmountsStr;
-      
-      return parsed;
-    } catch (error) {
-      console.error("Error parsing invoice:", error);
-      // Return basic parsed result with primary amount
-      return {
-        vendorName: extractVendorFromEmail(email.from),
-        amount: primaryAmount,
-        currency: "USD",
-        invoiceDate: new Date().toISOString().split("T")[0],
-        billingPeriodStart: null,
-        billingPeriodEnd: null,
-        billingFrequency: null,
-        invoiceNumber: null,
-        description: null,
-        confidenceScore: 0.8,
-        extractedAmounts: extractedAmountsStr,
-      };
-    }
+    return {
+      vendorName: extractVendorFromEmail(email.from),
+      amount: primaryAmount,
+      currency: "USD",
+      invoiceDate: isoDate,
+      billingPeriodStart: null,
+      billingPeriodEnd: null,
+      billingFrequency: null,
+      invoiceNumber: null,
+      description: null,
+      confidenceScore: 0.9,
+      extractedAmounts: extractedAmountsStr,
+    };
   }
 
   // No primary amount found, let OpenAI decide

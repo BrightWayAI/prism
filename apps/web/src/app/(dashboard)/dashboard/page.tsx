@@ -82,17 +82,16 @@ export default function DashboardPage() {
   const handleScanInvoices = async () => {
     setParsing(true);
     try {
-      // Parse invoices from last 6 months
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      // Parse recent invoices first (fast). Older history can be scanned from onboarding/clear+rescan.
+      const start = new Date();
+      start.setDate(start.getDate() - 45);
       
       const res = await fetch("/api/invoices/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startDate: sixMonthsAgo.toISOString(),
-          force: true,
-          maxResults: 1500,
+          startDate: start.toISOString(),
+          maxResults: 600,
         }),
       });
       

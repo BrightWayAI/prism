@@ -38,6 +38,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   const body = await request.json();
   const force = body?.force === true;
 
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
     );
 
     // Get candidate invoice/receipt emails (broad keyword search + optional vendor-pattern search)
-    const messages = await searchInvoiceEmails(session.user.id, {
+    const messages = await searchInvoiceEmails(userId, {
       daysBack,
       vendorIds,
       maxResults,
@@ -89,13 +91,15 @@ export async function POST(request: Request) {
       skipped: 0,
     };
 
-    for (const message of messages) {
-      if (!message.id) continue;
+    const concurrency = 5;
+
+    const processOne = async (message: { id?: string | null; threadId?: string | null }) => {
+      if (!message.id) return;
 
       // Check if already parsed
       const existing = await db.query.invoices.findFirst({
         where: and(
-          eq(invoices.userId, session.user.id),
+          eq(invoices.userId, userId),
           eq(invoices.gmailMessageId, message.id)
         ),
       });
@@ -104,49 +108,45 @@ export async function POST(request: Request) {
       // But if vendorId is null OR caller requested force reparse, re-run to backfill/fix dates.
       if (existing && existing.vendorId && !force) {
         results.skipped++;
-        continue;
+        return;
       }
 
       // Get email content
-      const email = await getEmailContent(session.user.id, message.id);
+      const email = await getEmailContent(userId, message.id);
       console.log(`Processing email: "${email.subject}" from "${email.from}"`);
-      
-      // Parse with OpenAI
+
+      // Parse (fast-path skips LLM when primary amount is detectable via regex)
       let parsed;
       try {
         parsed = await parseInvoiceEmail(email);
       } catch (parseErr) {
         console.error("Parse error for message:", message.id, parseErr);
         results.failed++;
-        continue;
+        return;
       }
-      
+
       if (!parsed) {
-        console.log("No parse result");
         results.failed++;
-        continue;
+        return;
       }
 
       // Skip non-invoices (newsletters, notifications, etc.)
       if (parsed.confidenceScore < 0.5) {
-        console.log("Skipping low confidence (not an invoice):", parsed.vendorName, parsed.confidenceScore);
         results.failed++;
-        continue;
+        return;
       }
 
       // Skip if no amount found (amount is null or 0)
       if (parsed.amount === null || parsed.amount === undefined || parsed.amount === 0) {
-        console.log(`Skipping - no amount found for "${email.subject}":`, parsed.vendorName, parsed.amount);
         results.failed++;
-        continue;
+        return;
       }
 
       // Validate parsed data
       const amount = typeof parsed.amount === 'number' ? parsed.amount : parseFloat(String(parsed.amount));
       if (isNaN(amount) || amount <= 0) {
-        console.log("Invalid amount:", parsed.vendorName, parsed.amount);
         results.failed++;
-        continue;
+        return;
       }
 
       const emailHeaderDate = new Date(email.date);
@@ -159,9 +159,8 @@ export async function POST(request: Request) {
         if (!isNaN(emailHeaderDate.getTime())) {
           invoiceDate = emailHeaderDate;
         } else {
-          console.log("Skipping - invalid invoice and email date:", parsed.vendorName, parsed.invoiceDate, email.date);
           results.failed++;
-          continue;
+          return;
         }
       }
 
@@ -178,86 +177,56 @@ export async function POST(request: Request) {
       // Match vendor by multiple strategies
       let vendorId: string | null = null;
       let matchedVendor = null;
-      
+
       const emailFrom = email.from.toLowerCase();
       const emailSubject = email.subject.toLowerCase();
-      
+
       // Strategy 1: Special handling for Google payments (payments-noreply@google.com)
       // Differentiate Google Cloud vs Google Workspace by subject line
       if (emailFrom.includes("payments-noreply@google.com")) {
         if (emailSubject.includes("google workspace") || emailSubject.includes("workspace")) {
           matchedVendor = vendorsForMatching.find((v) => v.slug === "google-workspace");
-          if (matchedVendor) {
-            console.log(`Matched Google Workspace from subject`);
-          }
         } else if (emailSubject.includes("google cloud") || emailSubject.includes("cloud")) {
           matchedVendor = vendorsForMatching.find((v) => v.slug === "gcp");
-          if (matchedVendor) {
-            console.log(`Matched Google Cloud from subject`);
-          }
         }
-        // Default to Google Cloud for payments-noreply@google.com
         if (!matchedVendor) {
           matchedVendor = vendorsForMatching.find((v) => v.slug === "gcp");
-          console.log(`Defaulting Google payment to Google Cloud`);
         }
       }
-      
+
       // Strategy 2: Check if this is a Stripe/payment processor receipt with vendor name in subject
-      const isPaymentProcessor = emailFrom.includes("stripe.com") || 
-                                  emailFrom.includes("paddle.com") || 
-                                  emailFrom.includes("chargebee.com");
-      
+      const isPaymentProcessor = emailFrom.includes("stripe.com") ||
+        emailFrom.includes("paddle.com") ||
+        emailFrom.includes("chargebee.com");
+
       if (!matchedVendor && isPaymentProcessor) {
-        // Extract vendor name from "Your receipt from X" - get everything after "from"
-        // Subject examples:
-        // - "Your receipt from Railway Corporation" -> "Railway Corporation"
-        // - "Your receipt from ZenLeads Inc. (dba) Apollo" -> "Apollo" (use dba name)
-        // - "Your receipt from Calendly" -> "Calendly"
-        
         let vendorFromSubject: string | null = null;
-        
-        // First check for (dba) pattern - the dba name is the actual brand
+
         const dbaMatch = emailSubject.match(/\(dba\)\s*(\w+)/i);
         if (dbaMatch) {
           vendorFromSubject = dbaMatch[1];
-          console.log(`Found dba vendor: "${vendorFromSubject}"`);
         } else {
-          // Get everything after "from " to end of subject
           const fromMatch = emailSubject.match(/from\s+(.+)$/i);
           if (fromMatch) {
             vendorFromSubject = fromMatch[1].trim();
-            // Strip common suffixes
             vendorFromSubject = vendorFromSubject
               .replace(/\s+(inc\.?|llc|corp\.?|corporation|ltd\.?|limited|co\.?)$/i, "")
               .trim();
-            console.log(`Found vendor from subject: "${vendorFromSubject}"`);
           }
         }
-        
+
         if (vendorFromSubject) {
           const subjectVendorLower = normalizeVendorName(vendorFromSubject);
-          
-          // Try to match against our vendor list
           for (const v of vendorsForMatching) {
             const vNameLower = normalizeVendorName(v.name);
             const vSlugLower = normalizeVendorName(v.slug);
-            
-            // Exact match or contains
-            if (vNameLower === subjectVendorLower || 
-                vSlugLower === subjectVendorLower ||
-                subjectVendorLower.includes(vNameLower) ||
-                vNameLower.includes(subjectVendorLower)) {
+            if (vNameLower === subjectVendorLower ||
+              vSlugLower === subjectVendorLower ||
+              subjectVendorLower.includes(vNameLower) ||
+              vNameLower.includes(subjectVendorLower)) {
               matchedVendor = v;
-              console.log(`Matched vendor ${v.name} from payment processor receipt`);
               break;
             }
-          }
-          
-          // If no match found in our list, we could create a dynamic vendor
-          // For now, just log it
-          if (!matchedVendor) {
-            console.log(`No vendor match for "${vendorFromSubject}" - will use parsed name`);
           }
         }
       }
@@ -321,7 +290,7 @@ export async function POST(request: Request) {
         if (matchedVendor.category === "Other") {
           console.log(`Skipping vendor in Other category: ${matchedVendor.name}`);
           results.failed++;
-          continue;
+          return;
         }
 
         vendorId = matchedVendor.id;
@@ -330,14 +299,14 @@ export async function POST(request: Request) {
         // Auto-add to user's tracked vendors if not already
         const existingUserVendor = await db.query.userVendors.findFirst({
           where: and(
-            eq(userVendors.userId, session.user.id),
+            eq(userVendors.userId, userId),
             eq(userVendors.vendorId, matchedVendor.id)
           ),
         });
         
         if (!existingUserVendor) {
           await db.insert(userVendors).values({
-            userId: session.user.id,
+            userId,
             vendorId: matchedVendor.id,
             isActive: true,
           });
@@ -347,13 +316,13 @@ export async function POST(request: Request) {
       if (!vendorId) {
         console.log(`Skipping - could not match vendor for "${email.subject}" (parsed=${parsed.vendorName})`);
         results.failed++;
-        continue;
+        return;
       }
 
       // Store invoice with email metadata for verification
       try {
         const values = {
-          userId: session.user.id,
+          userId,
           vendorId,
           gmailMessageId: message.id,
           amount: amount.toFixed(2),
@@ -390,6 +359,11 @@ export async function POST(request: Request) {
         console.error("DB insert error:", dbErr);
         results.failed++;
       }
+    }
+
+    for (let i = 0; i < messages.length; i += concurrency) {
+      const batch = messages.slice(i, i + concurrency);
+      await Promise.all(batch.map(processOne));
     }
 
     return NextResponse.json(results);
