@@ -18,6 +18,19 @@ function parseInvoiceDateToUtc(dateStr: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function normalizeVendorName(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/\(.*?\)/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(
+      /\b(inc|incorporated|llc|ltd|limited|corp|corporation|company|co|gmbh|sarl|pte|plc)\b/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   
@@ -222,12 +235,12 @@ export async function POST(request: Request) {
         }
         
         if (vendorFromSubject) {
-          const subjectVendorLower = vendorFromSubject.toLowerCase();
+          const subjectVendorLower = normalizeVendorName(vendorFromSubject);
           
           // Try to match against our vendor list
           for (const v of vendorsForMatching) {
-            const vNameLower = v.name.toLowerCase();
-            const vSlugLower = v.slug.toLowerCase();
+            const vNameLower = normalizeVendorName(v.name);
+            const vSlugLower = normalizeVendorName(v.slug);
             
             // Exact match or contains
             if (vNameLower === subjectVendorLower || 
@@ -289,7 +302,10 @@ export async function POST(request: Request) {
         // Then try fuzzy match in database
         if (!matchedVendor) {
           matchedVendor = await db.query.vendors.findFirst({
-            where: ilike(vendors.name, `%${parsed.vendorName}%`),
+            where: and(
+              ilike(vendors.name, `%${parsed.vendorName}%`),
+              inArray(vendors.slug, CURATED_VENDOR_SLUGS)
+            ),
           });
           if (matchedVendor) {
             console.log(`Matched vendor ${matchedVendor.name} from DB fuzzy search`);

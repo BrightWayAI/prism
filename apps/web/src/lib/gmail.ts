@@ -98,15 +98,21 @@ export async function searchInvoiceEmails(
 
   const broadMessages = await listMessages(gmail, broadQuery, maxResults);
 
-  // If the user selected specific vendors, also search by vendor email patterns to catch receipts
-  // that don't contain obvious keywords.
+  // Vendor-pattern search fills gaps when the broad query misses receipts (some vendors don't include obvious keywords).
+  // We do this even when vendorIds is not provided, but we only fetch additional messages up to the maxResults cap.
   let vendorMessages: { id?: string | null; threadId?: string | null }[] = [];
-  if (vendorIds && vendorIds.length > 0) {
-    const vendorsToSearch = await db.query.vendors.findMany({
-      where: (v, { inArray }) => inArray(v.id, vendorIds),
-    });
+  const remainingForVendors = Math.max(0, maxResults - broadMessages.length);
 
-    const allPatterns = vendorsToSearch.flatMap((v) => v.emailPatterns || []);
+  if (remainingForVendors > 0) {
+    const vendorsToSearch = vendorIds && vendorIds.length > 0
+      ? await db.query.vendors.findMany({
+          where: (v, { inArray }) => inArray(v.id, vendorIds),
+        })
+      : await db.query.vendors.findMany({
+          where: (v, { inArray }) => inArray(v.slug, CURATED_VENDOR_SLUGS),
+        });
+
+    const basePatterns = vendorsToSearch.flatMap((v) => v.emailPatterns || []);
 
     // Always include payment processors that send receipts on behalf of tools.
     const paymentProcessors = [
@@ -119,13 +125,17 @@ export async function searchInvoiceEmails(
     ];
 
     for (const processor of paymentProcessors) {
-      if (!allPatterns.includes(processor)) allPatterns.push(processor);
+      if (!basePatterns.includes(processor)) basePatterns.push(processor);
     }
 
-    if (allPatterns.length > 0) {
-      const vendorQuery = buildVendorInvoiceQuery(allPatterns, daysBack);
-      console.log("Gmail search query (vendors):", vendorQuery);
-      vendorMessages = await listMessages(gmail, vendorQuery, maxResults);
+    // Chunk patterns to avoid Gmail query length limits.
+    const chunkSize = 20;
+    for (let i = 0; i < basePatterns.length && vendorMessages.length < remainingForVendors; i += chunkSize) {
+      const chunk = basePatterns.slice(i, i + chunkSize);
+      const vendorQuery = buildVendorInvoiceQuery(chunk, daysBack);
+      console.log("Gmail search query (vendors chunk):", vendorQuery);
+      const batch = await listMessages(gmail, vendorQuery, remainingForVendors - vendorMessages.length);
+      vendorMessages.push(...batch);
     }
   }
 
