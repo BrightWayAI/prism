@@ -28,6 +28,22 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "new_invoice",
 ]);
 
+// AI Cost Tracking enums
+export const aiProviderEnum = pgEnum("ai_provider", ["openai", "anthropic"]);
+
+export const integrationStatusEnum = pgEnum("integration_status", [
+  "active",
+  "error",
+  "invalid",
+]);
+
+export const aiAlertTypeEnum = pgEnum("ai_alert_type", [
+  "budget_warning",
+  "budget_exceeded",
+  "anomaly",
+  "sync_error",
+]);
+
 export const vendorCategoryEnum = pgEnum("vendor_category", [
   "Cloud",
   "CI/CD",
@@ -206,6 +222,104 @@ export const alerts = pgTable(
   ]
 );
 
+// ===========================================
+// AI Cost Tracking Tables
+// ===========================================
+
+// API integrations (encrypted keys)
+export const aiIntegrations = pgTable(
+  "ai_integrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: aiProviderEnum("provider").notNull(),
+    apiKeyEncrypted: text("api_key_encrypted").notNull(),
+    apiKeyHint: text("api_key_hint").notNull(), // last 4 chars for display
+    status: integrationStatusEnum("status").default("active").notNull(),
+    lastSyncAt: timestamp("last_sync_at"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("ai_integrations_user_provider").on(table.userId, table.provider),
+    index("ai_integrations_user_idx").on(table.userId),
+  ]
+);
+
+// Usage data from AI providers
+export const aiUsageRecords = pgTable(
+  "ai_usage_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    integrationId: uuid("integration_id")
+      .notNull()
+      .references(() => aiIntegrations.id, { onDelete: "cascade" }),
+    provider: aiProviderEnum("provider").notNull(),
+    recordedDate: timestamp("recorded_date", { mode: "date" }).notNull(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").default(0).notNull(),
+    outputTokens: integer("output_tokens").default(0).notNull(),
+    cachedTokens: integer("cached_tokens").default(0).notNull(),
+    requests: integer("requests").default(0).notNull(),
+    costUsd: decimal("cost_usd", { precision: 12, scale: 6 }).default("0").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("ai_usage_unique").on(table.userId, table.provider, table.recordedDate, table.model),
+    index("ai_usage_user_date_idx").on(table.userId, table.recordedDate),
+    index("ai_usage_provider_idx").on(table.provider, table.recordedDate),
+  ]
+);
+
+// Budgets for AI spend
+export const aiBudgets = pgTable(
+  "ai_budgets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: aiProviderEnum("provider"), // NULL means total across all providers
+    monthlyLimitUsd: decimal("monthly_limit_usd", { precision: 10, scale: 2 }).notNull(),
+    alertThresholdPercent: integer("alert_threshold_percent").default(80).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("ai_budgets_user_provider").on(table.userId, table.provider),
+    index("ai_budgets_user_idx").on(table.userId),
+  ]
+);
+
+// Alert history for AI cost tracking
+export const aiAlerts = pgTable(
+  "ai_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: aiAlertTypeEnum("type").notNull(),
+    provider: aiProviderEnum("provider"),
+    message: text("message").notNull(),
+    details: jsonb("details"),
+    emailSent: boolean("email_sent").default(false).notNull(),
+    acknowledged: boolean("acknowledged").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_alerts_user_idx").on(table.userId, table.createdAt),
+  ]
+);
+
+// ===========================================
+// Type exports
+// ===========================================
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
@@ -217,3 +331,13 @@ export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
 export type Alert = typeof alerts.$inferSelect;
 export type NewAlert = typeof alerts.$inferInsert;
+
+// AI Cost Tracking types
+export type AiIntegration = typeof aiIntegrations.$inferSelect;
+export type NewAiIntegration = typeof aiIntegrations.$inferInsert;
+export type AiUsageRecord = typeof aiUsageRecords.$inferSelect;
+export type NewAiUsageRecord = typeof aiUsageRecords.$inferInsert;
+export type AiBudget = typeof aiBudgets.$inferSelect;
+export type NewAiBudget = typeof aiBudgets.$inferInsert;
+export type AiAlert = typeof aiAlerts.$inferSelect;
+export type NewAiAlert = typeof aiAlerts.$inferInsert;
