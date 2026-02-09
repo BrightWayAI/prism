@@ -1,9 +1,12 @@
 import { db } from "@prism/db";
 import { aiUsageRecords, aiBudgets, aiAlerts, users } from "@prism/db/schema";
 import { eq, gte, and, lt } from "drizzle-orm";
-import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) return null;
+  const { Resend } = require("resend");
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 interface BudgetCheckResult {
   shouldAlert: boolean;
@@ -114,6 +117,9 @@ export async function sendAlertEmail(
   alertType: string,
   message: string
 ): Promise<void> {
+  const resend = getResendClient();
+  if (!resend) return; // Skip email if Resend not configured
+
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
 
   if (!user?.email) return;
