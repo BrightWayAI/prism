@@ -1,149 +1,126 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { SpendSummary } from "@/components/dashboard/spend-summary";
-import { ServiceCard } from "@/components/dashboard/service-card";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, RefreshCw, Calendar, ChevronDown } from "lucide-react";
-
-const DATE_RANGES = [
-  { label: "This month", value: "current" },
-  { label: "Last month", value: "last" },
-  { label: "Last 3 months", value: "3m" },
-  { label: "Last 6 months", value: "6m" },
-  { label: "Last 12 months", value: "12m" },
-  { label: "All time", value: "all" },
-];
-
-interface Service {
-  vendorId: string;
-  vendorName: string;
-  vendorSlug: string;
-  vendorLogo: string | null;
-  vendorCategory: string;
-  currentMonthSpend: number;
-  previousMonthSpend: number;
-  totalSpend: number;
-  invoiceCount: number;
-  currency: string;
-  spendHistory: number[];
-}
+import { SummaryCards } from "@/components/ai-costs/summary-cards";
+import { ProviderChart } from "@/components/ai-costs/provider-chart";
+import { ModelChart } from "@/components/ai-costs/model-chart";
+import { DailyTrendChart } from "@/components/ai-costs/daily-trend-chart";
+import { AlertsList } from "@/components/ai-costs/alerts-list";
+import { IntegrationsPanel } from "@/components/ai-costs/integrations-panel";
+import { Loader2 } from "lucide-react";
 
 interface DashboardData {
-  totalSpend: number;
-  previousSpend: number;
-  serviceCount: number;
-  invoiceCount: number;
-  services: Service[];
+  currentMonth: {
+    total: number;
+    byProvider: Record<string, number>;
+    byModel: Record<string, number>;
+    dailyTrend: Array<{ date: string; amount: number }>;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  lastMonth: {
+    total: number;
+  };
+  projectedSpend: number;
+  budgets: Array<{
+    id: string;
+    provider: string | null;
+    monthlyLimitUsd: string;
+    alertThresholdPercent: number;
+  }>;
+  alerts: Array<{
+    id: string;
+    type: string;
+    provider: string | null;
+    message: string;
+    acknowledged: boolean;
+    createdAt: string;
+  }>;
+}
+
+interface Integration {
+  id: string;
+  provider: string;
+  status: string;
+  apiKeyHint: string;
+  lastSyncAt: string | null;
+  lastError: string | null;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [parsing, setParsing] = useState(false);
-  const [clearing, setClearing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState("current"); // Default to current month
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const fetchDashboard = async (range: string = dateRange) => {
+  const fetchDashboard = useCallback(async () => {
     try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      params.set("range", range);
-      
-      const res = await fetch(`/api/dashboard?${params.toString()}`);
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push("/login");
-          return;
-        }
-        throw new Error("Failed to fetch dashboard");
+      const res = await fetch("/api/ai-costs/dashboard");
+      if (res.status === 401) {
+        router.push("/login");
+        return;
       }
-      const dashboardData = await res.json();
-      setData(dashboardData);
+      if (res.ok) {
+        const data = await res.json();
+        setDashboardData(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch dashboard:", err);
     }
-  };
-  
-  const handleDateRangeChange = (range: string) => {
-    setDateRange(range);
-    setShowDatePicker(false);
-    fetchDashboard(range);
-  };
+  }, [router]);
 
-  const handleScanInvoices = async () => {
-    setParsing(true);
+  const fetchIntegrations = useCallback(async () => {
     try {
-      // Parse recent invoices first (fast). Older history can be scanned from onboarding/clear+rescan.
-      const start = new Date();
-      start.setDate(start.getDate() - 45);
-      
-      const res = await fetch("/api/invoices/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startDate: start.toISOString(),
-          maxResults: 600,
-        }),
-      });
-      
-      if (!res.ok) throw new Error("Failed to parse invoices");
-      
-      const result = await res.json();
-      console.log("Parse result:", result);
-      
-      // Refresh dashboard data
-      await fetchDashboard();
+      const res = await fetch("/api/ai-costs/integrations");
+      if (res.ok) {
+        const data = await res.json();
+        setIntegrations(data.integrations);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to scan invoices");
-    } finally {
-      setParsing(false);
+      console.error("Failed to fetch integrations:", err);
     }
-  };
-
-  const handleClearData = async () => {
-    if (!confirm("Are you sure you want to clear all invoice data? This cannot be undone.")) {
-      return;
-    }
-    
-    setClearing(true);
-    try {
-      const res = await fetch("/api/data/clear", {
-        method: "POST",
-      });
-      
-      if (!res.ok) throw new Error("Failed to clear data");
-      
-      const result = await res.json();
-      console.log("Clear result:", result);
-      
-      // Refresh dashboard data
-      await fetchDashboard();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to clear data");
-    } finally {
-      setClearing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboard();
   }, []);
 
-  // Redirect to onboarding if user has no invoices
   useEffect(() => {
-    if (!loading && data && data.invoiceCount === 0) {
-      router.push("/onboarding");
+    Promise.all([fetchDashboard(), fetchIntegrations()]).finally(() => setLoading(false));
+  }, [fetchDashboard, fetchIntegrations]);
+
+  const handleAddIntegration = async (provider: string, apiKey: string) => {
+    const res = await fetch("/api/ai-costs/integrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, apiKey }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "Failed to add integration");
     }
-  }, [loading, data, router]);
+
+    await Promise.all([fetchIntegrations(), fetchDashboard()]);
+  };
+
+  const handleDeleteIntegration = async (provider: string) => {
+    await fetch("/api/ai-costs/integrations", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+
+    await Promise.all([fetchIntegrations(), fetchDashboard()]);
+  };
+
+  const handleAcknowledgeAlert = async (id: string) => {
+    await fetch("/api/ai-costs/alerts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, acknowledged: true }),
+    });
+
+    await fetchDashboard();
+  };
 
   if (loading) {
     return (
@@ -155,127 +132,54 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
-    return (
-      <AppLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-          <p className="text-destructive-foreground">{error}</p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  const totalBudget = dashboardData?.budgets.find((b) => !b.provider);
 
   return (
     <AppLayout>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold">Dashboard</h2>
-            <p className="text-muted-foreground">
-              Your SaaS and developer tool spending overview
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Date Range Selector */}
-            <div className="relative">
-              <Button
-                variant="outline"
-                onClick={() => setShowDatePicker(!showDatePicker)}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {DATE_RANGES.find(r => r.value === dateRange)?.label || "Select range"}
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-              {showDatePicker && (
-                <Card className="absolute right-0 top-12 z-50 w-48">
-                  <CardContent className="p-2">
-                    {DATE_RANGES.map((range) => (
-                      <button
-                        key={range.value}
-                        className={`w-full rounded px-3 py-2 text-left text-sm hover:bg-secondary ${
-                          dateRange === range.value ? "bg-secondary font-medium" : ""
-                        }`}
-                        onClick={() => handleDateRangeChange(range.value)}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            
-            <Button
-              variant="outline"
-              onClick={handleClearData}
-              disabled={clearing || parsing}
-            >
-              {clearing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {clearing ? "Clearing..." : "Clear Data"}
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleScanInvoices}
-              disabled={parsing || clearing}
-            >
-              {parsing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              {parsing ? "Scanning..." : "Scan Invoices"}
-            </Button>
-          </div>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold">AI Cost Dashboard</h2>
+          <p className="text-muted-foreground">
+            Track your OpenAI and Anthropic API spending
+          </p>
         </div>
 
-        {data && (
-          <>
-            <SpendSummary
-              totalSpend={data.totalSpend}
-              previousSpend={data.previousSpend}
-              serviceCount={data.serviceCount}
+        <SummaryCards
+          currentMonthTotal={dashboardData?.currentMonth.total || 0}
+          lastMonthTotal={dashboardData?.lastMonth.total || 0}
+          projectedSpend={dashboardData?.projectedSpend || 0}
+          budgets={dashboardData?.budgets || []}
+          inputTokens={dashboardData?.currentMonth.inputTokens || 0}
+          outputTokens={dashboardData?.currentMonth.outputTokens || 0}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <DailyTrendChart
+              dailyTrend={dashboardData?.currentMonth.dailyTrend || []}
+              budgetLimit={totalBudget ? Number(totalBudget.monthlyLimitUsd) : undefined}
             />
 
-            {data.services.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-12 text-center">
-                <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">No invoices found</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Click &quot;Scan Invoices&quot; to search your Gmail for billing emails
-                </p>
-                <Button className="mt-4" onClick={handleScanInvoices} disabled={parsing}>
-                  {parsing ? "Scanning..." : "Scan Now"}
-                </Button>
-              </div>
-            ) : (
-              <div>
-                <h3 className="mb-4 text-lg font-medium">
-                  Services ({data.services.length})
-                </h3>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {data.services.map((service) => (
-                    <ServiceCard
-                      key={service.vendorId}
-                      name={service.vendorName}
-                      logoUrl={service.vendorLogo || undefined}
-                      category={service.vendorCategory}
-                      currentSpend={service.currentMonthSpend}
-                      previousSpend={service.previousMonthSpend}
-                      totalSpend={service.totalSpend}
-                      invoiceCount={service.invoiceCount}
-                      spendHistory={service.spendHistory}
-                      onClick={() => router.push(`/invoices?vendorId=${service.vendorId}`)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+            <div className="grid gap-6 md:grid-cols-2">
+              <ProviderChart byProvider={dashboardData?.currentMonth.byProvider || {}} />
+              <ModelChart byModel={dashboardData?.currentMonth.byModel || {}} />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <IntegrationsPanel
+              integrations={integrations}
+              onAdd={handleAddIntegration}
+              onDelete={handleDeleteIntegration}
+              onRefresh={() => Promise.all([fetchIntegrations(), fetchDashboard()])}
+            />
+
+            <AlertsList
+              alerts={dashboardData?.alerts || []}
+              onAcknowledge={handleAcknowledgeAlert}
+            />
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

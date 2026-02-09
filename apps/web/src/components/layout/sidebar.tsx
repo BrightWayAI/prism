@@ -12,11 +12,13 @@ import {
   LogOut,
   CreditCard,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Cpu,
+  Zap
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "AI Costs", icon: Cpu },
   { href: "/invoices", label: "Invoices", icon: Receipt },
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/export", label: "Export", icon: Download },
