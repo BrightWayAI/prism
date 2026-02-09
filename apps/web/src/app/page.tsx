@@ -187,7 +187,7 @@ export default function HomePage() {
             </p>
             <p>
               You find out you spent $2,000 on GPT-4o when the invoice hits your inbox.
-              By then it's too late.
+              By then it&apos;s too late.
             </p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function HomePage() {
       <section className="border-y border-border/40 bg-secondary/20 py-24">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-3xl font-bold sm:text-4xl">
-            Stop guessing what you're spending
+            Stop guessing what you&apos;re spending
           </h2>
 
           <div className="mt-16 grid gap-8 lg:grid-cols-2">
